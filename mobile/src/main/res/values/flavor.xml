@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="endpoint">http://tardis.nsdev.org:8787/tamer-v2/</string>
+</resources>
