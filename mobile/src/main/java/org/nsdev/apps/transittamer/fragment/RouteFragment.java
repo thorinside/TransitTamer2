@@ -1,5 +1,6 @@
 package org.nsdev.apps.transittamer.fragment;
 
+import android.databinding.DataBindingUtil;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -8,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import org.nsdev.apps.transittamer.R;
+import org.nsdev.apps.transittamer.databinding.FragmentRouteBinding;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -62,7 +64,9 @@ public class RouteFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_route, container, false);
+        FragmentRouteBinding binding = DataBindingUtil.inflate(inflater, R.layout.fragment_route, container, false);
+        return binding.getRoot();
+
     }
 
     // TODO: Rename method, update argument and hook method into UI event
