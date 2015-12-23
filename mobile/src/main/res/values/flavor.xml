@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="endpoint">http://tardis.nsdev.org:8787/tamer-v2/</string>
+    <string name="maps_api_key">AIzaSyDZvPmcYDzgs0RlspoNv4gDkwznH62XLwE</string>
 </resources>

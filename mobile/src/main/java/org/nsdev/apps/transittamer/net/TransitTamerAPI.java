@@ -23,7 +23,7 @@ public interface TransitTamerAPI {
     @GET("agency")
     Observable<Agency> getAgency();
 
-    @GET("findstop/{stopCode}")
+    @GET("findStop/{stopCode}")
     Observable<Stop> getStop(@Path("stopCode") String stopCode);
 
     @GET("routes/{stopCode}")

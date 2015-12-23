@@ -4,7 +4,6 @@ import android.databinding.DataBindingUtil;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
@@ -13,29 +12,28 @@ import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.cesarferreira.rxpaper.RxPaper;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
 import org.nsdev.apps.transittamer.App;
+import org.nsdev.apps.transittamer.Constants;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.ActivityMainBinding;
 import org.nsdev.apps.transittamer.fragment.MapFragment;
 import org.nsdev.apps.transittamer.fragment.RouteFragment;
 import org.nsdev.apps.transittamer.fragment.StopFragment;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
+import org.nsdev.apps.transittamer.model.Stop;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
-import org.nsdev.apps.transittamer.net.model.Agency;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Inject;
-
-import retrofit.HttpException;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
 
 public class MainActivity extends RxAppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -61,6 +59,7 @@ public class MainActivity extends RxAppCompatActivity
         FloatingActionButton fab = mBinding.appBar.fab;
         fab.setOnClickListener(view -> {
 
+            /*
             mApi.getAgency()
                     .compose(bindToLifecycle())
                     .subscribeOn(Schedulers.io())
@@ -81,6 +80,36 @@ public class MainActivity extends RxAppCompatActivity
 
                         }
                     });
+
+                    */
+
+
+            ArrayList<Stop> newStops = new ArrayList<>();
+
+            Stop stop = new Stop();
+            stop.setDescription("Fake Stop");
+            stop.setStopId("6604");
+            stop.setName("Name: 6604");
+            stop.setNickName("Nickname: 6604");
+            stop.setLatitude(51.092819);
+            stop.setLongitude(-114.129271);
+            newStops.add(stop);
+
+            stop = new Stop();
+            stop.setDescription("Fake Stop");
+            stop.setStopId("6475");
+            stop.setName("Name: 6475");
+            stop.setNickName("Nickname: 6475");
+            stop.setLatitude(50.96953);
+            stop.setLongitude(-114.118792);
+            newStops.add(stop);
+
+            RxPaper.with(this)
+                    .write(Constants.KEY_FAVOURITE_STOPS, newStops)
+                    .subscribe(success -> {
+                        Log.e(TAG, "Favourite Stops migrated successfully.");
+                    });
+
 
         });
 
@@ -158,7 +187,7 @@ public class MainActivity extends RxAppCompatActivity
 
     private void setupViewPager(ViewPager viewPager) {
         ViewPagerAdapter adapter = new ViewPagerAdapter(getSupportFragmentManager());
-        adapter.addFragment(StopFragment.newInstance(null, null), "Stop");
+        adapter.addFragment(StopFragment.newInstance(), "Stop");
         adapter.addFragment(RouteFragment.newInstance(null, null), "Route");
         adapter.addFragment(MapFragment.newInstance(null, null), "Map");
         viewPager.setAdapter(adapter);

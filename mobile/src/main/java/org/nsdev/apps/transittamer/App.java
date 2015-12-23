@@ -46,6 +46,16 @@ public class App extends Application {
                     .build();
         }
 
+        RxPaper.with(this)
+                .exists(Constants.KEY_FAVOURITE_STOPS)
+                .subscribe(exists -> {
+                    if (!exists) {
+                        migrateLegacyData();
+                    }
+                });
+    }
+
+    private void migrateLegacyData() {
         // Check for legacy database and move its data over to Paper
         SqlDataHelper helper = new SqlDataHelper(this);
         try {
@@ -67,7 +77,7 @@ public class App extends Application {
             }
 
             RxPaper.with(this)
-                    .write(Contants.KEY_FAVOURITE_STOPS, newStops)
+                    .write(Constants.KEY_FAVOURITE_STOPS, newStops)
                     .subscribe(success -> {
                         Log.e(TAG, "Favourite Stops migrated successfully.");
                     });
@@ -75,7 +85,6 @@ public class App extends Application {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
     }
 
     private String getNetworkEndpoint() {
