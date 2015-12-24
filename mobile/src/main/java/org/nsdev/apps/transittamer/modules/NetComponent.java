@@ -2,6 +2,8 @@ package org.nsdev.apps.transittamer.modules;
 
 import android.content.SharedPreferences;
 
+import org.nsdev.apps.transittamer.App;
+
 import javax.inject.Singleton;
 
 import dagger.Component;
@@ -13,7 +15,7 @@ import retrofit.Retrofit;
 @Singleton
 @Component(modules = {AppModule.class, NetModule.class})
 public interface NetComponent {
+    App app();
     Retrofit retrofit();
-
     SharedPreferences sharedPreferences();
 }

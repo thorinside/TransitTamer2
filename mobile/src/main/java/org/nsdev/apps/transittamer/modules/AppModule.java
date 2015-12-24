@@ -28,4 +28,10 @@ public class AppModule {
     SharedPreferences provideSharedPreferences() {
         return mApp.getSharedPreferences("app_preferences", Context.MODE_PRIVATE);
     }
+
+    @Singleton
+    @Provides
+    App provideApp() {
+        return mApp;
+    }
 }

@@ -2,6 +2,10 @@ package org.nsdev.apps.transittamer.modules;
 
 import android.content.SharedPreferences;
 
+import com.squareup.otto.Bus;
+
+import org.nsdev.apps.transittamer.App;
+import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 
@@ -25,5 +29,17 @@ public class UserModule {
     @Provides
     TransitTamerAPI getTransitTamerAPI(Retrofit retrofit) {
         return retrofit.create(TransitTamerAPI.class);
+    }
+
+    @UserScope
+    @Provides
+    DataManager getDataManager(App context, TransitTamerAPI api, Bus bus) {
+        return new DataManager(context, api, bus);
+    }
+
+    @UserScope
+    @Provides
+    Bus getBus() {
+        return new Bus();
     }
 }

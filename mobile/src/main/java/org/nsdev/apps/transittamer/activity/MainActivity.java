@@ -35,6 +35,10 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import rx.Observable;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
+
 public class MainActivity extends RxAppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
@@ -86,30 +90,18 @@ public class MainActivity extends RxAppCompatActivity
 
             ArrayList<Stop> newStops = new ArrayList<>();
 
-            Stop stop = new Stop();
-            stop.setDescription("Fake Stop");
-            stop.setStopId("6604");
-            stop.setName("Name: 6604");
-            stop.setNickName("Nickname: 6604");
-            stop.setLatitude(51.092819);
-            stop.setLongitude(-114.129271);
-            newStops.add(stop);
-
-            stop = new Stop();
-            stop.setDescription("Fake Stop");
-            stop.setStopId("6475");
-            stop.setName("Name: 6475");
-            stop.setNickName("Nickname: 6475");
-            stop.setLatitude(50.96953);
-            stop.setLongitude(-114.118792);
-            newStops.add(stop);
-
-            RxPaper.with(this)
-                    .write(Constants.KEY_FAVOURITE_STOPS, newStops)
-                    .subscribe(success -> {
-                        Log.e(TAG, "Favourite Stops migrated successfully.");
-                    });
-
+            Observable.just("6604", "6605", "6475", "7600", "6602", "6601", "6600", "5999", "5998")
+                    .observeOn(Schedulers.io())
+                    .subscribeOn(AndroidSchedulers.mainThread())
+                    .concatMap(s -> mApi.getStop(s))
+                    .doOnNext(stop -> newStops.add(Stop.fromNetModel(stop)))
+                    .doOnCompleted(() -> {
+                        RxPaper.with(this)
+                                .write(Constants.KEY_FAVOURITE_STOPS, newStops)
+                                .subscribe(success -> {
+                                    Log.e(TAG, "Favourite Stops migrated successfully.");
+                                });
+                    }).subscribe();
 
         });
 

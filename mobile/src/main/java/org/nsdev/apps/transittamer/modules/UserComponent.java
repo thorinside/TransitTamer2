@@ -1,6 +1,7 @@
 package org.nsdev.apps.transittamer.modules;
 
 import org.nsdev.apps.transittamer.activity.MainActivity;
+import org.nsdev.apps.transittamer.fragment.StopFragment;
 
 import dagger.Component;
 
@@ -11,4 +12,6 @@ import dagger.Component;
 @Component(dependencies = NetComponent.class, modules = UserModule.class)
 public interface UserComponent {
     void inject(MainActivity mainActivity);
+
+    void inject(StopFragment stopFragment);
 }

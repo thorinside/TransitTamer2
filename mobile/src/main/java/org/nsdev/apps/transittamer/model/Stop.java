@@ -33,6 +33,20 @@ public class Stop {
         return stop;
     }
 
+    public static Stop fromNetModel(org.nsdev.apps.transittamer.net.model.Stop legacyStop) {
+        Stop stop = new Stop();
+        stop.setId(0);
+        stop.setStopId(legacyStop.stop_id);
+        stop.setStopCode(legacyStop.stop_code);
+        stop.setAgencyId(null);
+        stop.setName(legacyStop.stop_name);
+        stop.setNickName(null);
+        stop.setDescription(legacyStop.stop_desc);
+        stop.setLatitude(legacyStop.stop_lat);
+        stop.setLongitude(legacyStop.stop_lon);
+        return stop;
+    }
+
     public int getId() {
         return mId;
     }

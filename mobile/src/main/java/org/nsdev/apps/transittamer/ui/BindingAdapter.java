@@ -31,5 +31,14 @@ public abstract class BindingAdapter<T extends ViewDataBinding> extends Recycler
         updateBinding(binding, position);
     }
 
+    @Override
+    public void onViewRecycled(BindingViewHolder<T> holder) {
+        super.onViewRecycled(holder);
+        T binding = holder.getBinding();
+        recycleBinding(binding);
+    }
+
     protected abstract void updateBinding(T binding, int position);
+
+    protected abstract void recycleBinding(T binding);
 }
