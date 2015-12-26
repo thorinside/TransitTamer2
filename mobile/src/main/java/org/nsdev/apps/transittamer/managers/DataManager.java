@@ -112,6 +112,9 @@ public class DataManager {
         long smallestDiff = Long.MAX_VALUE;
         StopTime nearestTime;
         Route nearestRoute;
+        boolean complete;
+
+        int count = 0;
 
         public String toString() {
             if (nearestRoute == null || nearestTime == null) return "No Service";
@@ -144,42 +147,42 @@ public class DataManager {
 
         RxPaper.with(mContext)
                 .read("routes-" + stop.getStopId(), new ArrayList<Route>())
-                .concatMapEager(Observable::from)
-                .flatMap(route -> RxPaper.with(mContext)
+                .subscribeOn(Schedulers.io())
+                .concatMap(Observable::from)
+                .concatMap(route -> RxPaper.with(mContext)
                         .read(String.format("schedule-%s-%s", stop.getStopId(), route.route_id), new ArrayList<StopTime>())
-                        .concatMapEager(Observable::from)
-                        .filter(stopTime2 -> {
-                            Date departureDate = getDateForDepartureTime(state.now, stopTime2);
+                        .concatMap(Observable::from)
+                        .filter(time -> {
+                            Date departureDate = getDateForDepartureTime(state.now, time);
                             return departureDate.after(state.now);
                         })
-                        .doOnNext(stopTime1 -> {
-                            Date departureDate = getDateForDepartureTime(state.now, stopTime1);
-                            long diff = departureDate.getTime() - state.now.getTime();
-                            if (diff < state.smallestDiff) {
-                                state.nearestTime = stopTime1;
-                                state.nearestRoute = route;
-                                state.smallestDiff = diff;
-                                Log.d("DataManager", "Got here: " + Thread.currentThread().getName() + " " + state.toString());
-                            }
-                        })
+                        .first()
                         .map(stopTime3 -> new RouteStopTime(route, stopTime3))
                 )
+                .doOnNext(item -> {
+                    state.count++;
+                    Date departureDate = getDateForDepartureTime(state.now, item.mStopTime);
+                    long diff = departureDate.getTime() - state.now.getTime();
+                    if (diff < state.smallestDiff) {
+                        state.nearestTime = item.mStopTime;
+                        state.nearestRoute = item.mRoute;
+                        state.smallestDiff = diff;
+                    }
+                })
                 .observeOn(AndroidSchedulers.mainThread())
-                .forEach(stopTime -> {
+                .subscribe(next -> {
                         },
                         error -> {
                             Log.e("DataManager", "WTF?", error);
                         },
                         () -> {
                             synchronized (state) {
-                                observable.onNext(state.toString());
+                                observable.onNext(stop.getStopCode() + " " + state.toString());
                             }
-                            Log.d("DataManager", "OnCompleted: " + Thread.currentThread().getName() + " " + state.toString());
-                            observable.onCompleted();
                         }
                 );
 
-        return observable;
+        return observable.observeOn(AndroidSchedulers.mainThread());
     }
 
     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");

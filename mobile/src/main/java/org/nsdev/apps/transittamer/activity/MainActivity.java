@@ -31,6 +31,7 @@ import org.nsdev.apps.transittamer.model.Stop;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -90,7 +91,7 @@ public class MainActivity extends RxAppCompatActivity
 
             ArrayList<Stop> newStops = new ArrayList<>();
 
-            Observable.just("6604", "6605", "6475", "7600", "6602", "6601", "6600", "5999", "5998")
+            Observable.from(Arrays.asList("6604", "6475", "7600", "6602", "6601", "6651", "5999", "8418", "6654", "5150", "3951", "5078", "9820"))
                     .observeOn(Schedulers.io())
                     .subscribeOn(AndroidSchedulers.mainThread())
                     .concatMap(s -> mApi.getStop(s))

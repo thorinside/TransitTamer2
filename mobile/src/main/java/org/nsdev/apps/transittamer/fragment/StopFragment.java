@@ -33,11 +33,15 @@ import org.nsdev.apps.transittamer.model.Stop;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.inject.Inject;
 
+import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
+import rx.subscriptions.CompositeSubscription;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -97,8 +101,13 @@ public class StopFragment extends RxFragment {
                 return mStops.size();
             }
 
+            Map<ItemStopBinding, CompositeSubscription> bindingSubscriptions = new HashMap<>();
+
             @Override
             protected void updateBinding(ItemStopBinding binding, int position) {
+                if (bindingSubscriptions.containsKey(binding)) {
+                    bindingSubscriptions.remove(binding).unsubscribe();
+                }
                 Stop stop = mStops.get(position);
                 binding.setStop(stop);
 
@@ -111,15 +120,22 @@ public class StopFragment extends RxFragment {
                     setupMap(stop, binding.map.getMap());
                 }
 
-                mDataManager.getStopRoutes(stop).subscribe(binding::setRoutes, error -> {
+                Subscription subscription = mDataManager.getStopRoutes(stop).subscribe(binding::setRoutes, error -> {
                 });
-                mDataManager.getNext(stop).subscribe(binding::setNext, error -> {
+                Subscription subscription1 = mDataManager.getNext(stop).subscribe(binding::setNext, error -> {
                 });
+
+                CompositeSubscription compositeSubscription = new CompositeSubscription(subscription, subscription1);
+                bindingSubscriptions.put(binding, compositeSubscription);
             }
 
             @Override
             protected void recycleBinding(ItemStopBinding binding) {
-
+                Log.e("StopFragment", "Binding Recycling");
+                CompositeSubscription compositeSubscription = bindingSubscriptions.remove(binding);
+                if (compositeSubscription != null) {
+                    compositeSubscription.unsubscribe();
+                }
             }
         };
 
