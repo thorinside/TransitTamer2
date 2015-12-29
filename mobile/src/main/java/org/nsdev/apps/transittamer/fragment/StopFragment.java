@@ -113,16 +113,14 @@ public class StopFragment extends RxFragment {
 
                 if (binding.map.getMap() == null) {
                     binding.map.onCreate(null);
-                    binding.map.getMapAsync(googleMap -> {
-                        setupMap(stop, googleMap);
-                    });
+                    binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
                 } else {
                     setupMap(stop, binding.map.getMap());
                 }
 
                 Subscription subscription = mDataManager.getStopRoutes(stop).subscribe(binding::setRoutes, error -> {
                 });
-                Subscription subscription1 = mDataManager.getNext(stop).subscribe(binding::setNext, error -> {
+                Subscription subscription1 = mDataManager.getNextBus(stop).subscribe(binding::setNext, error -> {
                 });
 
                 CompositeSubscription compositeSubscription = new CompositeSubscription(subscription, subscription1);

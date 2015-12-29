@@ -3,6 +3,7 @@ package org.nsdev.apps.transittamer.managers;
 import android.content.Context;
 import android.text.format.DateUtils;
 import android.util.Log;
+import android.util.Pair;
 
 import com.cesarferreira.rxpaper.RxPaper;
 import com.squareup.otto.Bus;
@@ -16,13 +17,15 @@ import org.nsdev.apps.transittamer.net.model.StopTime;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
-import rx.subjects.BehaviorSubject;
 
 /**
  * Provides an abstraction of the network data APIs.
@@ -41,10 +44,10 @@ public class DataManager {
     }
 
     public void syncStop(Stop stop) {
-        refreshStopRoutes(stop);
+        syncStopRoutes(stop);
     }
 
-    private void refreshStopRoutes(Stop stop) {
+    private void syncStopRoutes(Stop stop) {
 
         mApi.getRoutes(stop.getStopCode()).subscribeOn(Schedulers.io())
                 .subscribeOn(Schedulers.computation())
@@ -53,7 +56,7 @@ public class DataManager {
                     RxPaper.with(mContext)
                             .write("routes-" + stop.getStopId(), routes)
                             .subscribe(success -> {
-                                refreshNext(stop);
+                                syncStopSchedule(stop);
                             });
 
                 }, error -> {
@@ -62,14 +65,42 @@ public class DataManager {
 
     }
 
+    private void syncStopSchedule(Stop stop) {
+        RxPaper.with(mContext)
+                .read("routes-" + stop.getStopId(), new ArrayList<Route>())
+                .concatMap(Observable::from)
+                .subscribeOn(Schedulers.io())
+                .flatMap(route ->
+                        mApi.getStopSchedule(stop.getStopId(), route.route_id)
+                                .map(l -> new Pair<>(route, l))
+                )
+                .flatMap(routeSchedule ->
+                        RxPaper.with(mContext)
+                                .write(String.format("schedule-%s-%s", stop.getStopId(), routeSchedule.first.route_id), routeSchedule.second)
+                )
+                .subscribe(success -> {
+                    Log.e("DataManager", "Sync Stop Schedule success: " + success);
+                    if (success) {
+                        try {
+                            syncNextBus(stop);
+                        } catch (Throwable ex) {
+                            Log.e("DataManager", "Oops", ex);
+                        }
+                    }
+                }, error -> {
+                    Log.e("DataManager", "Oops 2", error);
+                }, () -> {
+                });
+    }
+
     public Observable<String> getStopRoutes(Stop stop) {
         return RxPaper.with(mContext)
                 .read("routes-" + stop.getStopCode())
-                .observeOn(Schedulers.io())
-                .subscribeOn(AndroidSchedulers.mainThread())
+                .subscribeOn(Schedulers.io())
                 .map(o -> {
                     List<Route> routes = (List<Route>) o;
                     StringBuilder builder = new StringBuilder();
+                    Collections.sort(routes, (lhs, rhs) -> Integer.valueOf(lhs.route_short_name).compareTo(Integer.valueOf(rhs.route_short_name)));
                     for (Route route : routes) {
                         if (builder.length() > 0) {
                             builder.append(", ");
@@ -80,31 +111,11 @@ public class DataManager {
                 });
     }
 
-    private void refreshNext(Stop stop) {
-        RxPaper.with(mContext)
-                .read("routes-" + stop.getStopId(), new ArrayList<Route>())
-                .concatMap(Observable::from)
-                .observeOn(Schedulers.io())
-                .subscribeOn(AndroidSchedulers.mainThread())
-                .subscribe(route -> {
-                    mApi.getStopSchedule(stop.getStopId(), route.route_id)
-                            .subscribe(
-                                    stopTimes -> {
-
-                                        RxPaper.with(mContext)
-                                                .write(String.format("schedule-%s-%s", stop.getStopId(), route.route_id), stopTimes)
-                                                .subscribe(success -> {
-                                                    Log.e("DataManager", String.format("Got schedule for stop %s, route %s", stop.getStopId(), route.route_id));
-                                                }, error -> {
-                                                    Log.e("DataMaanger", "Error", error);
-                                                });
-
-                                    }, error -> {
-                                        Log.e("DataMaanger", "Error", error);
-                                    }, () -> {
-                                        AndroidSchedulers.mainThread().createWorker().schedule(() -> mBus.post(new StopDataChangedEvent()));
-                                    });
-                });
+    public Observable<String> getNextBus(Stop stop) {
+        return RxPaper.with(mContext)
+                .read("next-bus-" + stop.getStopCode(), "")
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     private class NextCalculationState {
@@ -123,70 +134,63 @@ public class DataManager {
     }
 
     private class RouteStopTime {
-        final Route mRoute;
-        final StopTime mStopTime;
+        final StopTime stopTime;
+        final Route route;
 
-        private RouteStopTime(Route route, StopTime stopTime) {
-            mRoute = route;
-            mStopTime = stopTime;
-        }
-
-        public Route getRoute() {
-            return mRoute;
-        }
-
-        public StopTime getStopTime() {
-            return mStopTime;
+        public RouteStopTime(StopTime stopTime, Route route) {
+            this.stopTime = stopTime;
+            this.route = route;
         }
     }
 
-    public Observable<String> getNext(Stop stop) {
-        BehaviorSubject<String> observable = BehaviorSubject.create();
-
-        NextCalculationState state = new NextCalculationState();
+    private void syncNextBus(Stop stop) {
+        final NextCalculationState state = new NextCalculationState();
 
         RxPaper.with(mContext)
                 .read("routes-" + stop.getStopId(), new ArrayList<Route>())
-                .subscribeOn(Schedulers.io())
-                .concatMap(Observable::from)
-                .concatMap(route -> RxPaper.with(mContext)
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .flatMap(Observable::from)
+                .flatMap(route -> RxPaper.with(mContext)
                         .read(String.format("schedule-%s-%s", stop.getStopId(), route.route_id), new ArrayList<StopTime>())
-                        .concatMap(Observable::from)
-                        .filter(time -> {
-                            Date departureDate = getDateForDepartureTime(state.now, time);
-                            return departureDate.after(state.now);
-                        })
-                        .first()
-                        .map(stopTime3 -> new RouteStopTime(route, stopTime3))
+                        .map(stopTimes -> new Pair<Route, List<StopTime>>(route, stopTimes))
                 )
-                .doOnNext(item -> {
-                    state.count++;
-                    Date departureDate = getDateForDepartureTime(state.now, item.mStopTime);
-                    long diff = departureDate.getTime() - state.now.getTime();
-                    if (diff < state.smallestDiff) {
-                        state.nearestTime = item.mStopTime;
-                        state.nearestRoute = item.mRoute;
-                        state.smallestDiff = diff;
-                    }
-                })
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(next -> {
-                        },
-                        error -> {
-                            Log.e("DataManager", "WTF?", error);
-                        },
-                        () -> {
-                            synchronized (state) {
-                                observable.onNext(stop.getStopCode() + " " + state.toString());
+                .subscribe(
+                        route -> {
+                            for (StopTime stopTime : route.second) {
+                                Date departureDate = getDateForDepartureTime(state.now, stopTime);
+                                if (departureDate.after(state.now)) {
+                                    long diff = departureDate.getTime() - state.now.getTime();
+                                    if (diff < state.smallestDiff) {
+                                        synchronized (state) {
+                                            state.nearestTime = stopTime;
+                                            state.nearestRoute = route.first;
+                                            state.smallestDiff = diff;
+                                        }
+                                    }
+                                }
                             }
-                        }
-                );
-
-        return observable.observeOn(AndroidSchedulers.mainThread());
+                            Log.e("NextBus", state.toString() + " " + Thread.currentThread().getName());
+                        }, error -> {
+                        }, () -> {
+                            synchronized (state) {
+                                String nextBus = state.toString();
+                                RxPaper.with(mContext)
+                                        .write("next-bus-" + stop.getStopCode(), nextBus)
+                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .subscribe(aBoolean -> {
+                                            Log.e("NextBus", nextBus + " " + aBoolean + " " + Thread.currentThread().getName());
+                                            if (aBoolean) {
+                                                AndroidSchedulers.mainThread().createWorker().schedule(() -> mBus.post(new StopDataChangedEvent()), 5, TimeUnit.SECONDS);
+                                            }
+                                        }, error -> {
+                                            Log.e("DataManager", "oops 5", error);
+                                        });
+                            }
+                        });
     }
 
-    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd");
+    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+    SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
     private Date getDateForDepartureTime(Date now, StopTime stopTime) {
         String timeStr = stopTime.departure_time;
