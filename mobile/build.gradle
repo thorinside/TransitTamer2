@@ -59,11 +59,11 @@ dependencies {
     compile 'com.j256.ormlite:ormlite-android:4.48'
 
     // New database
-    compile 'com.cesarferreira.rxpaper:rxpaper:0.3.3'
+    compile 'io.realm:realm-android:0.87.1'
 
     // REST
     compile 'com.squareup.retrofit:retrofit:2.0.0-beta2'
-    compile 'com.squareup.retrofit:converter-moshi:2.0.0-beta2'
+    compile 'com.squareup.retrofit:converter-gson:2.0.0-beta2'
     compile 'com.squareup.retrofit:adapter-rxjava:2.0.0-beta2'
     compile 'com.squareup.okhttp:logging-interceptor:2.6.0'
 

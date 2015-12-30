@@ -3,26 +3,21 @@ package org.nsdev.apps.transittamer.managers;
 import android.content.Context;
 import android.text.format.DateUtils;
 import android.util.Log;
-import android.util.Pair;
 
-import com.cesarferreira.rxpaper.RxPaper;
 import com.squareup.otto.Bus;
 
-import org.nsdev.apps.transittamer.events.StopDataChangedEvent;
-import org.nsdev.apps.transittamer.model.Stop;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.Route;
+import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
@@ -36,11 +31,13 @@ public class DataManager {
     private final Context mContext;
     private final TransitTamerAPI mApi;
     private final Bus mBus;
+    private final RealmConfiguration mRealmConfiguration;
 
-    public DataManager(Context context, TransitTamerAPI api, Bus bus) {
+    public DataManager(Context context, TransitTamerAPI api, Bus bus, RealmConfiguration config) {
         mContext = context;
         mApi = api;
         mBus = bus;
+        mRealmConfiguration = config;
     }
 
     public void syncStop(Stop stop) {
@@ -49,23 +46,28 @@ public class DataManager {
 
     private void syncStopRoutes(Stop stop) {
 
-        mApi.getRoutes(stop.getStopCode()).subscribeOn(Schedulers.io())
-                .subscribeOn(Schedulers.computation())
+        mApi.getRoutes(stop.getStop_code())
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(routes -> {
+                    Realm realm = Realm.getInstance(mRealmConfiguration);
+                    realm.beginTransaction();
+                    stop.getRoutes().clear();
+                    for (Route route : routes) {
+                        stop.getRoutes().add(realm.copyToRealmOrUpdate(route));
+                    }
+                    realm.commitTransaction();
+                    realm.close();
 
-                    RxPaper.with(mContext)
-                            .write("routes-" + stop.getStopId(), routes)
-                            .subscribe(success -> {
-                                syncStopSchedule(stop);
-                            });
+                    syncStopSchedule(stop);
 
                 }, error -> {
                     Log.e("DataManager", "Getting Stop Routes", error);
                 });
-
     }
 
     private void syncStopSchedule(Stop stop) {
+                    /* TODO: Replace with Realm
         RxPaper.with(mContext)
                 .read("routes-" + stop.getStopId(), new ArrayList<Route>())
                 .concatMap(Observable::from)
@@ -91,9 +93,12 @@ public class DataManager {
                     Log.e("DataManager", "Oops 2", error);
                 }, () -> {
                 });
+                */
     }
 
     public Observable<String> getStopRoutes(Stop stop) {
+                            /* TODO: Replace with Realm
+
         return RxPaper.with(mContext)
                 .read("routes-" + stop.getStopCode())
                 .subscribeOn(Schedulers.io())
@@ -109,13 +114,19 @@ public class DataManager {
                     }
                     return builder.toString();
                 });
+                */
+        return null;
     }
 
     public Observable<String> getNextBus(Stop stop) {
+                            /* TODO: Replace with Realm
+
         return RxPaper.with(mContext)
                 .read("next-bus-" + stop.getStopCode(), "")
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread());
+                */
+        return null;
     }
 
     private class NextCalculationState {
@@ -129,7 +140,7 @@ public class DataManager {
 
         public String toString() {
             if (nearestRoute == null || nearestTime == null) return "No Service";
-            return String.format("#%s: %s", nearestRoute.route_short_name, DateUtils.formatDateTime(mContext, getDateForDepartureTime(now, nearestTime).getTime(), DateUtils.FORMAT_SHOW_TIME));
+            return String.format("#%s: %s", nearestRoute.getRoute_short_name(), DateUtils.formatDateTime(mContext, getDateForDepartureTime(now, nearestTime).getTime(), DateUtils.FORMAT_SHOW_TIME));
         }
     }
 
@@ -146,6 +157,7 @@ public class DataManager {
     private void syncNextBus(Stop stop) {
         final NextCalculationState state = new NextCalculationState();
 
+        /*
         RxPaper.with(mContext)
                 .read("routes-" + stop.getStopId(), new ArrayList<Route>())
                 .subscribeOn(AndroidSchedulers.mainThread())
@@ -187,13 +199,14 @@ public class DataManager {
                                         });
                             }
                         });
+                        */
     }
 
     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
     SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
     private Date getDateForDepartureTime(Date now, StopTime stopTime) {
-        String timeStr = stopTime.departure_time;
+        String timeStr = stopTime.getDeparture_time();
         Date date = null;
 
         String day = dayFormat.format(now);

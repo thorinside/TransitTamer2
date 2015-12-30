@@ -16,19 +16,18 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import com.cesarferreira.rxpaper.RxPaper;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
 import org.nsdev.apps.transittamer.App;
-import org.nsdev.apps.transittamer.Constants;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.ActivityMainBinding;
 import org.nsdev.apps.transittamer.fragment.MapFragment;
 import org.nsdev.apps.transittamer.fragment.RouteFragment;
 import org.nsdev.apps.transittamer.fragment.StopFragment;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
-import org.nsdev.apps.transittamer.model.Stop;
+import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
+import org.nsdev.apps.transittamer.net.model.Stop;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +35,8 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import io.realm.Realm;
+import io.realm.RealmList;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
@@ -49,6 +50,10 @@ public class MainActivity extends RxAppCompatActivity
 
     @Inject
     TransitTamerAPI mApi;
+
+    @Inject
+    Realm mRealm;
+
     private ActivityMainBinding mBinding;
 
     @Override
@@ -89,20 +94,30 @@ public class MainActivity extends RxAppCompatActivity
                     */
 
 
-            ArrayList<Stop> newStops = new ArrayList<>();
+            RealmList<Stop> newStops = new RealmList<>();
 
             Observable.from(Arrays.asList("6604", "6475", "7600", "6602", "6601", "6651", "5999", "8418", "6654", "5150", "3951", "5078", "9820"))
-                    .observeOn(Schedulers.io())
-                    .subscribeOn(AndroidSchedulers.mainThread())
                     .concatMap(s -> mApi.getStop(s))
-                    .doOnNext(stop -> newStops.add(Stop.fromNetModel(stop)))
-                    .doOnCompleted(() -> {
-                        RxPaper.with(this)
-                                .write(Constants.KEY_FAVOURITE_STOPS, newStops)
-                                .subscribe(success -> {
-                                    Log.e(TAG, "Favourite Stops migrated successfully.");
-                                });
-                    }).subscribe();
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(
+                            stop -> {
+                                mRealm.beginTransaction();
+                                newStops.add(mRealm.copyToRealmOrUpdate(stop));
+                                mRealm.commitTransaction();
+                            },
+                            error -> {
+                                Log.e("MainActivity", "Error", error);
+                            },
+                            () -> {
+                                FavouriteStops favouriteStops = mRealm.allObjects(FavouriteStops.class).get(0);
+                                mRealm.beginTransaction();
+                                mRealm.copyToRealmOrUpdate(newStops);
+                                favouriteStops.setStops(newStops);
+                                mRealm.commitTransaction();
+                                Log.e(TAG, "Favourite Stops migrated successfully.");
+                            }
+                    );
 
         });
 
@@ -119,6 +134,12 @@ public class MainActivity extends RxAppCompatActivity
         setupViewPager(viewPager);
 
         mBinding.appBar.tabs.setupWithViewPager(mBinding.appBar.content.viewpager);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mRealm.close();
     }
 
     @Override

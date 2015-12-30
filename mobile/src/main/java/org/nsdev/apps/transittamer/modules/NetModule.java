@@ -2,6 +2,10 @@ package org.nsdev.apps.transittamer.modules;
 
 import android.content.Context;
 
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.squareup.okhttp.Cache;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.logging.HttpLoggingInterceptor;
@@ -10,7 +14,8 @@ import javax.inject.Singleton;
 
 import dagger.Module;
 import dagger.Provides;
-import retrofit.MoshiConverterFactory;
+import io.realm.RealmObject;
+import retrofit.GsonConverterFactory;
 import retrofit.Retrofit;
 import retrofit.RxJavaCallAdapterFactory;
 
@@ -49,11 +54,33 @@ public class NetModule {
 
     @Singleton
     @Provides
-    public Retrofit provideRetrofit(OkHttpClient client) {
+    public Gson provideGson() {
+        Gson gson = new GsonBuilder()
+                .setExclusionStrategies(new ExclusionStrategy() {
+                    @Override
+                    public boolean shouldSkipField(FieldAttributes f) {
+                        return f.getDeclaringClass().equals(RealmObject.class);
+                    }
+
+                    @Override
+                    public boolean shouldSkipClass(Class<?> clazz) {
+                        return false;
+                    }
+                })
+                .create();
+
+        return gson;
+    }
+
+
+    @Singleton
+    @Provides
+    public Retrofit provideRetrofit(OkHttpClient client, Gson gson) {
+
         return new Retrofit.Builder()
                 .baseUrl(mNetworkEndpoint)
                 .client(client)
-                .addConverterFactory(MoshiConverterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create(gson))
                 .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
                 .build();
     }

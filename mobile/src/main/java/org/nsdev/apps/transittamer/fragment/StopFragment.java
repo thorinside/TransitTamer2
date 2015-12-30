@@ -11,7 +11,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.cesarferreira.rxpaper.RxPaper;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptor;
@@ -29,7 +28,8 @@ import org.nsdev.apps.transittamer.databinding.FragmentStopBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopBinding;
 import org.nsdev.apps.transittamer.events.StopDataChangedEvent;
 import org.nsdev.apps.transittamer.managers.DataManager;
-import org.nsdev.apps.transittamer.model.Stop;
+import org.nsdev.apps.transittamer.model.FavouriteStops;
+import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 
 import java.util.ArrayList;
@@ -38,6 +38,8 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import io.realm.Realm;
+import io.realm.RealmList;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
@@ -51,13 +53,16 @@ import rx.subscriptions.CompositeSubscription;
 public class StopFragment extends RxFragment {
     private FragmentStopBinding mBinding;
     private BindingAdapter<ItemStopBinding> mAdapter;
-    private ArrayList<Stop> mStops;
+    private RealmList<Stop> mStops;
 
     @Inject
     DataManager mDataManager;
 
     @Inject
     Bus mBus;
+
+    @Inject
+    Realm mRealm;
 
     public StopFragment() {
         // Required empty public constructor
@@ -93,7 +98,7 @@ public class StopFragment extends RxFragment {
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         mBinding.recyclerView.setLayoutManager(layout);
 
-        mStops = new ArrayList<>();
+        mStops = new RealmList<>();
 
         mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
             @Override
@@ -101,13 +106,8 @@ public class StopFragment extends RxFragment {
                 return mStops.size();
             }
 
-            Map<ItemStopBinding, CompositeSubscription> bindingSubscriptions = new HashMap<>();
-
             @Override
             protected void updateBinding(ItemStopBinding binding, int position) {
-                if (bindingSubscriptions.containsKey(binding)) {
-                    bindingSubscriptions.remove(binding).unsubscribe();
-                }
                 Stop stop = mStops.get(position);
                 binding.setStop(stop);
 
@@ -118,6 +118,7 @@ public class StopFragment extends RxFragment {
                     setupMap(stop, binding.map.getMap());
                 }
 
+                /*
                 Subscription subscription = mDataManager.getStopRoutes(stop).subscribe(binding::setRoutes, error -> {
                 });
                 Subscription subscription1 = mDataManager.getNextBus(stop).subscribe(binding::setNext, error -> {
@@ -125,15 +126,12 @@ public class StopFragment extends RxFragment {
 
                 CompositeSubscription compositeSubscription = new CompositeSubscription(subscription, subscription1);
                 bindingSubscriptions.put(binding, compositeSubscription);
+                */
             }
 
             @Override
             protected void recycleBinding(ItemStopBinding binding) {
                 Log.e("StopFragment", "Binding Recycling");
-                CompositeSubscription compositeSubscription = bindingSubscriptions.remove(binding);
-                if (compositeSubscription != null) {
-                    compositeSubscription.unsubscribe();
-                }
             }
         };
 
@@ -143,7 +141,7 @@ public class StopFragment extends RxFragment {
     }
 
     private void setupMap(Stop stop, GoogleMap googleMap) {
-        LatLng latLng = new LatLng(stop.getLatitude(), stop.getLongitude());
+        LatLng latLng = new LatLng(stop.getStop_lat(), stop.getStop_lon());
         googleMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
 
         // Doesn't support vector drawables for whatever reason
@@ -162,24 +160,20 @@ public class StopFragment extends RxFragment {
     public void onDestroyView() {
         super.onDestroyView();
         mBus.unregister(this);
+        mRealm.close();
     }
 
     @Override
     public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
 
-        RxPaper.with(getContext())
-                .read(Constants.KEY_FAVOURITE_STOPS, new ArrayList<Stop>())
-                .compose(bindToLifecycle())
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(stops -> {
-                    mStops = (ArrayList<Stop>) stops;
-                    for (Stop stop : mStops) {
-                        mDataManager.syncStop(stop);
-                    }
-                    mAdapter.notifyDataSetChanged();
-                });
+        FavouriteStops favouriteStops = mRealm.allObjects(FavouriteStops.class).first();
+        mStops = favouriteStops.getStops();
 
+        for (Stop stop : mStops) {
+            mDataManager.syncStop(stop);
+        }
+
+        mAdapter.notifyDataSetChanged();
 
         super.onViewStateRestored(savedInstanceState);
     }
