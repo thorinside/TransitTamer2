@@ -22,7 +22,6 @@ import java.util.Locale;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmList;
-import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
@@ -122,15 +121,26 @@ public class DataManager {
         return builder.toString();
     }
 
-    public Observable<String> getNextBus(Stop stop) {
-                            /* TODO: Replace with Realm
+    public String getNextBus(Stop stop) {
 
-        return RxPaper.with(mContext)
-                .read("next-bus-" + stop.getStopCode(), "")
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread());
-                */
-        return null;
+        final NextCalculationState state = new NextCalculationState();
+
+        for (StopRouteSchedule schedule : stop.getSchedules()) {
+            for (StopTime stopTime : schedule.getSchedule()) {
+                Date departureDate = getDateForDepartureTime(state.now, stopTime);
+                if (departureDate.after(state.now)) {
+                    long diff = departureDate.getTime() - state.now.getTime();
+                    if (diff < state.smallestDiff) {
+                        synchronized (state) {
+                            state.nearestTime = stopTime;
+                            state.nearestRoute = schedule.getRoute();
+                            state.smallestDiff = diff;
+                        }
+                    }
+                }
+            }
+        }
+        return state.toString();
     }
 
     private class NextCalculationState {
@@ -138,72 +148,11 @@ public class DataManager {
         long smallestDiff = Long.MAX_VALUE;
         StopTime nearestTime;
         Route nearestRoute;
-        boolean complete;
-
-        int count = 0;
 
         public String toString() {
             if (nearestRoute == null || nearestTime == null) return "No Service";
             return String.format("#%s: %s", nearestRoute.getRoute_short_name(), DateUtils.formatDateTime(mContext, getDateForDepartureTime(now, nearestTime).getTime(), DateUtils.FORMAT_SHOW_TIME));
         }
-    }
-
-    private class RouteStopTime {
-        final StopTime stopTime;
-        final Route route;
-
-        public RouteStopTime(StopTime stopTime, Route route) {
-            this.stopTime = stopTime;
-            this.route = route;
-        }
-    }
-
-    private void syncNextBus(Stop stop) {
-        final NextCalculationState state = new NextCalculationState();
-
-        /*
-        RxPaper.with(mContext)
-                .read("routes-" + stop.getStopId(), new ArrayList<Route>())
-                .subscribeOn(AndroidSchedulers.mainThread())
-                .flatMap(Observable::from)
-                .flatMap(route -> RxPaper.with(mContext)
-                        .read(String.format("schedule-%s-%s", stop.getStopId(), route.route_id), new ArrayList<StopTime>())
-                        .map(stopTimes -> new Pair<Route, List<StopTime>>(route, stopTimes))
-                )
-                .subscribe(
-                        route -> {
-                            for (StopTime stopTime : route.second) {
-                                Date departureDate = getDateForDepartureTime(state.now, stopTime);
-                                if (departureDate.after(state.now)) {
-                                    long diff = departureDate.getTime() - state.now.getTime();
-                                    if (diff < state.smallestDiff) {
-                                        synchronized (state) {
-                                            state.nearestTime = stopTime;
-                                            state.nearestRoute = route.first;
-                                            state.smallestDiff = diff;
-                                        }
-                                    }
-                                }
-                            }
-                            Log.e("NextBus", state.toString() + " " + Thread.currentThread().getName());
-                        }, error -> {
-                        }, () -> {
-                            synchronized (state) {
-                                String nextBus = state.toString();
-                                RxPaper.with(mContext)
-                                        .write("next-bus-" + stop.getStopCode(), nextBus)
-                                        .observeOn(AndroidSchedulers.mainThread())
-                                        .subscribe(aBoolean -> {
-                                            Log.e("NextBus", nextBus + " " + aBoolean + " " + Thread.currentThread().getName());
-                                            if (aBoolean) {
-                                                AndroidSchedulers.mainThread().createWorker().schedule(() -> mBus.post(new StopDataChangedEvent()), 5, TimeUnit.SECONDS);
-                                            }
-                                        }, error -> {
-                                            Log.e("DataManager", "oops 5", error);
-                                        });
-                            }
-                        });
-                        */
     }
 
     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);

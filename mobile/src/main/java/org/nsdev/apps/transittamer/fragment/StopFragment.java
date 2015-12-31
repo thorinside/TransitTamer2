@@ -119,16 +119,7 @@ public class StopFragment extends RxFragment {
                 }
 
                 binding.setRoutes(mDataManager.getStopRoutes(stop));
-
-                /*
-                Subscription subscription = mDataManager.getStopRoutes(stop).subscribe(binding::setRoutes, error -> {
-                });
-                Subscription subscription1 = mDataManager.getNextBus(stop).subscribe(binding::setNext, error -> {
-                });
-
-                CompositeSubscription compositeSubscription = new CompositeSubscription(subscription, subscription1);
-                bindingSubscriptions.put(binding, compositeSubscription);
-                */
+                binding.setNext(mDataManager.getNextBus(stop));
             }
 
             @Override
@@ -162,6 +153,11 @@ public class StopFragment extends RxFragment {
     public void onDestroyView() {
         super.onDestroyView();
         mBus.unregister(this);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
         mRealm.close();
     }
 
