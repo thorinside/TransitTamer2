@@ -40,6 +40,7 @@ import java.util.Map;
 import javax.inject.Inject;
 
 import io.realm.Realm;
+import io.realm.RealmChangeListener;
 import io.realm.RealmList;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
@@ -120,8 +121,8 @@ public class StopFragment extends RxFragment {
                     setupMap(stop, binding.map.getMap());
                 }
 
-                binding.setRoutes(mDataManager.getStopRoutes(stop));
-                binding.setNext(mDataManager.getNextBus(stop));
+                binding.setRoutes(stop.getStopRoutes());
+                binding.setNext(stop.getNextBus());
             }
 
             @Override
@@ -133,7 +134,13 @@ public class StopFragment extends RxFragment {
         mBinding.recyclerView.setAdapter(mAdapter);
 
         mTimer = new OneMinuteTimer();
-        mTimer.onCreate(() -> mAdapter.notifyDataSetChanged());
+        mTimer.onCreate(() -> {
+            for (Stop stop : mStops) {
+                mDataManager.syncStopNextBus(stop);
+            }
+        });
+
+        mRealm.addChangeListener(() -> mAdapter.notifyDataSetChanged());
 
         return mBinding.getRoot();
     }

@@ -25,6 +25,9 @@ public class Stop extends RealmObject {
     private RealmList<Route> routes = new RealmList<>();
     private RealmList<StopRouteSchedule> schedules = new RealmList<>();
 
+    private String nextBus = "";
+    private String stopRoutes = "";
+
     public Stop() {
     }
 
@@ -122,5 +125,21 @@ public class Stop extends RealmObject {
 
     public void setSchedules(RealmList<StopRouteSchedule> schedules) {
         this.schedules = schedules;
+    }
+
+    public String getNextBus() {
+        return nextBus;
+    }
+
+    public void setNextBus(String nextBus) {
+        this.nextBus = nextBus;
+    }
+
+    public String getStopRoutes() {
+        return stopRoutes;
+    }
+
+    public void setStopRoutes(String stopRoutes) {
+        this.stopRoutes = stopRoutes;
     }
 }

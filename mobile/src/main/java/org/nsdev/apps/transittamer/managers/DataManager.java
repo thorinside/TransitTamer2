@@ -22,7 +22,7 @@ import java.util.Locale;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmList;
-import rx.android.schedulers.AndroidSchedulers;
+import rx.Observable;
 import rx.schedulers.Schedulers;
 
 /**
@@ -44,14 +44,47 @@ public class DataManager {
     }
 
     public void syncStop(Stop stop) {
-        syncStopRoutes(stop);
+
+        // Would like to sync in the background, so we need
+        // to create a new instance of the stop, on the io thread
+        // and do the work there
+        Observable.just(stop.getStop_id())
+                .observeOn(Schedulers.io())
+                .subscribeOn(Schedulers.io())
+                .map(stopId -> {
+                    Realm realm = Realm.getInstance(mRealmConfiguration);
+                    Stop stop1 = realm.where(Stop.class).equalTo("stop_id", stopId).findFirst();
+                    return stop1;
+                })
+                .subscribe(this::syncStopRoutes, error -> {});
+    }
+
+    public void syncStopNextBus(Stop stop) {
+        // Would like to sync in the background, so we need
+        // to create a new instance of the stop, on the io thread
+        // and do the work there
+        Observable.just(stop.getStop_id())
+                .observeOn(Schedulers.io())
+                .subscribeOn(Schedulers.io())
+                .map(stopId -> {
+                    try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
+                        Stop stop1 = realm.where(Stop.class).equalTo("stop_id", stopId).findFirst();
+                        return stop1;
+                    }
+                })
+                .subscribe((stop2) -> {
+                    try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
+                        realm.beginTransaction();
+                        stop2.setNextBus(getNextBus(stop2));
+                        realm.commitTransaction();
+                    }
+                }, error -> {});
     }
 
     private void syncStopRoutes(Stop stop) {
-
         mApi.getRoutes(stop.getStop_code())
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
+                .observeOn(Schedulers.trampoline())
+                .subscribeOn(Schedulers.trampoline())
                 .subscribe(routes -> {
                     Realm realm = Realm.getInstance(mRealmConfiguration);
                     realm.beginTransaction();
@@ -62,23 +95,20 @@ public class DataManager {
                     }
                     realm.commitTransaction();
                     realm.close();
-
                     syncStopSchedule(stop);
-
                 }, error -> {
                     Log.e("DataManager", "Getting Stop Routes", error);
                 });
     }
 
     private void syncStopSchedule(Stop stop) {
-
         for (Route route : stop.getRoutes()) {
             Log.e("DataManager", "Route: " + route.getRoute_long_name());
             Realm realm = Realm.getInstance(mRealmConfiguration);
 
             mApi.getStopSchedule(stop.getStop_id(), route.getRoute_id())
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
+                    .observeOn(Schedulers.trampoline())
+                    .subscribeOn(Schedulers.trampoline())
                     .subscribe(
                             next -> {
                                 realm.beginTransaction();
@@ -91,6 +121,10 @@ public class DataManager {
                                 }
                                 stopRouteSchedule = realm.copyToRealm(stopRouteSchedule);
                                 stop.getSchedules().add(stopRouteSchedule);
+
+                                stop.setStopRoutes(getStopRoutes(stop));
+                                stop.setNextBus(getNextBus(stop));
+
                                 realm.commitTransaction();
                             },
                             error -> {
@@ -104,7 +138,7 @@ public class DataManager {
         }
     }
 
-    public String getStopRoutes(Stop stop) {
+    private String getStopRoutes(Stop stop) {
         RealmList<Route> routes = stop.getRoutes();
         ArrayList<String> shortNames = new ArrayList<>();
         for (Route route : routes) {
@@ -121,8 +155,7 @@ public class DataManager {
         return builder.toString();
     }
 
-    public String getNextBus(Stop stop) {
-
+    private String getNextBus(Stop stop) {
         final NextCalculationState state = new NextCalculationState();
 
         for (StopRouteSchedule schedule : stop.getSchedules()) {
