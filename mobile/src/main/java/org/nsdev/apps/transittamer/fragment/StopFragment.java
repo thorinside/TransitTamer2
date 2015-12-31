@@ -31,6 +31,7 @@ import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
+import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,6 +64,7 @@ public class StopFragment extends RxFragment {
 
     @Inject
     Realm mRealm;
+    private OneMinuteTimer mTimer;
 
     public StopFragment() {
         // Required empty public constructor
@@ -130,6 +132,9 @@ public class StopFragment extends RxFragment {
 
         mBinding.recyclerView.setAdapter(mAdapter);
 
+        mTimer = new OneMinuteTimer();
+        mTimer.onCreate(() -> mAdapter.notifyDataSetChanged());
+
         return mBinding.getRoot();
     }
 
@@ -159,6 +164,19 @@ public class StopFragment extends RxFragment {
     public void onDestroy() {
         super.onDestroy();
         mRealm.close();
+        mTimer.onDestroy();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        mTimer.onPause();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        mTimer.onResume();
     }
 
     @Override
