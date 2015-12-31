@@ -15,7 +15,7 @@ import io.realm.RealmObject;
 public class StopRouteSchedule extends RealmObject {
     private Stop stop;
     private Route route;
-    private RealmList<StopTime> schedule;
+    private RealmList<StopTime> schedule = new RealmList<>();
 
     public StopRouteSchedule() {
     }

@@ -118,6 +118,8 @@ public class StopFragment extends RxFragment {
                     setupMap(stop, binding.map.getMap());
                 }
 
+                binding.setRoutes(mDataManager.getStopRoutes(stop));
+
                 /*
                 Subscription subscription = mDataManager.getStopRoutes(stop).subscribe(binding::setRoutes, error -> {
                 });

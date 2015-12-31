@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.squareup.otto.Bus;
 
+import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
@@ -13,11 +14,14 @@ import org.nsdev.apps.transittamer.net.model.StopTime;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
+import io.realm.RealmList;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
@@ -53,6 +57,7 @@ public class DataManager {
                     Realm realm = Realm.getInstance(mRealmConfiguration);
                     realm.beginTransaction();
                     stop.getRoutes().clear();
+                    stop.getSchedules().clear();
                     for (Route route : routes) {
                         stop.getRoutes().add(realm.copyToRealmOrUpdate(route));
                     }
@@ -67,55 +72,54 @@ public class DataManager {
     }
 
     private void syncStopSchedule(Stop stop) {
-                    /* TODO: Replace with Realm
-        RxPaper.with(mContext)
-                .read("routes-" + stop.getStopId(), new ArrayList<Route>())
-                .concatMap(Observable::from)
-                .subscribeOn(Schedulers.io())
-                .flatMap(route ->
-                        mApi.getStopSchedule(stop.getStopId(), route.route_id)
-                                .map(l -> new Pair<>(route, l))
-                )
-                .flatMap(routeSchedule ->
-                        RxPaper.with(mContext)
-                                .write(String.format("schedule-%s-%s", stop.getStopId(), routeSchedule.first.route_id), routeSchedule.second)
-                )
-                .subscribe(success -> {
-                    Log.e("DataManager", "Sync Stop Schedule success: " + success);
-                    if (success) {
-                        try {
-                            syncNextBus(stop);
-                        } catch (Throwable ex) {
-                            Log.e("DataManager", "Oops", ex);
-                        }
-                    }
-                }, error -> {
-                    Log.e("DataManager", "Oops 2", error);
-                }, () -> {
-                });
-                */
+
+        for (Route route : stop.getRoutes()) {
+            Log.e("DataManager", "Route: " + route.getRoute_long_name());
+            Realm realm = Realm.getInstance(mRealmConfiguration);
+
+            mApi.getStopSchedule(stop.getStop_id(), route.getRoute_id())
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(
+                            next -> {
+                                realm.beginTransaction();
+                                StopRouteSchedule stopRouteSchedule = new StopRouteSchedule();
+                                stopRouteSchedule.setRoute(route);
+                                stopRouteSchedule.setStop(stop);
+                                RealmList<StopTime> schedule = stopRouteSchedule.getSchedule();
+                                for (StopTime stopTime : next) {
+                                    schedule.add(realm.copyToRealm(stopTime));
+                                }
+                                stopRouteSchedule = realm.copyToRealm(stopRouteSchedule);
+                                stop.getSchedules().add(stopRouteSchedule);
+                                realm.commitTransaction();
+                            },
+                            error -> {
+                                Log.e("DataManager", "Error syncStopSchedule", error);
+                                realm.cancelTransaction();
+                            },
+                            () -> {
+                                realm.close();
+                            }
+                    );
+        }
     }
 
-    public Observable<String> getStopRoutes(Stop stop) {
-                            /* TODO: Replace with Realm
-
-        return RxPaper.with(mContext)
-                .read("routes-" + stop.getStopCode())
-                .subscribeOn(Schedulers.io())
-                .map(o -> {
-                    List<Route> routes = (List<Route>) o;
-                    StringBuilder builder = new StringBuilder();
-                    Collections.sort(routes, (lhs, rhs) -> Integer.valueOf(lhs.route_short_name).compareTo(Integer.valueOf(rhs.route_short_name)));
-                    for (Route route : routes) {
-                        if (builder.length() > 0) {
-                            builder.append(", ");
-                        }
-                        builder.append(route.route_short_name.trim());
-                    }
-                    return builder.toString();
-                });
-                */
-        return null;
+    public String getStopRoutes(Stop stop) {
+        RealmList<Route> routes = stop.getRoutes();
+        ArrayList<String> shortNames = new ArrayList<>();
+        for (Route route : routes) {
+            shortNames.add(route.getRoute_short_name());
+        }
+        StringBuilder builder = new StringBuilder();
+        Collections.sort(shortNames, (lhs, rhs) -> Integer.valueOf(lhs).compareTo(Integer.valueOf(rhs)));
+        for (String route : shortNames) {
+            if (builder.length() > 0) {
+                builder.append(", ");
+            }
+            builder.append(route.trim());
+        }
+        return builder.toString();
     }
 
     public Observable<String> getNextBus(Stop stop) {
