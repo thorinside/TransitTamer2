@@ -56,7 +56,8 @@ public class DataManager {
                     Stop stop1 = realm.where(Stop.class).equalTo("stop_id", stopId).findFirst();
                     return stop1;
                 })
-                .subscribe(this::syncStopRoutes, error -> {});
+                .subscribe(this::syncStopRoutes, error -> {
+                });
     }
 
     public void syncStopNextBus(Stop stop) {
@@ -69,16 +70,17 @@ public class DataManager {
                 .map(stopId -> {
                     try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
                         Stop stop1 = realm.where(Stop.class).equalTo("stop_id", stopId).findFirst();
-                        return stop1;
+                        realm.beginTransaction();
+                        stop1.setNextBus(getNextBus(stop1));
+                        realm.commitTransaction();
+                        return true;
                     }
                 })
-                .subscribe((stop2) -> {
-                    try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
-                        realm.beginTransaction();
-                        stop2.setNextBus(getNextBus(stop2));
-                        realm.commitTransaction();
-                    }
-                }, error -> {});
+                .subscribe(
+                        success -> {
+                        }, error -> {
+                            Log.e("DataManager", "SyncStopNextBus error", error);
+                        });
     }
 
     private void syncStopRoutes(Stop stop) {

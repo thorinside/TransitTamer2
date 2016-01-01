@@ -134,15 +134,19 @@ public class StopFragment extends RxFragment {
         mBinding.recyclerView.setAdapter(mAdapter);
 
         mTimer = new OneMinuteTimer();
-        mTimer.onCreate(() -> {
-            for (Stop stop : mStops) {
-                mDataManager.syncStopNextBus(stop);
-            }
+        mTimer.onCreate(this::updateNextBus);
+
+        mRealm.addChangeListener(() -> {
+            mAdapter.notifyDataSetChanged();
         });
 
-        mRealm.addChangeListener(() -> mAdapter.notifyDataSetChanged());
-
         return mBinding.getRoot();
+    }
+
+    private void updateNextBus() {
+        for (Stop stop : mStops) {
+            mDataManager.syncStopNextBus(stop);
+        }
     }
 
     private void setupMap(Stop stop, GoogleMap googleMap) {
