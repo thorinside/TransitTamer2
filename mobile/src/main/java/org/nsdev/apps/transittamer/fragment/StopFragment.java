@@ -3,6 +3,7 @@ package org.nsdev.apps.transittamer.fragment;
 
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
@@ -22,7 +23,6 @@ import com.squareup.otto.Subscribe;
 import com.trello.rxlifecycle.components.support.RxFragment;
 
 import org.nsdev.apps.transittamer.App;
-import org.nsdev.apps.transittamer.Constants;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.FragmentStopBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopBinding;
@@ -33,19 +33,10 @@ import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
 import javax.inject.Inject;
 
 import io.realm.Realm;
-import io.realm.RealmChangeListener;
 import io.realm.RealmList;
-import rx.Subscription;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
-import rx.subscriptions.CompositeSubscription;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -66,6 +57,8 @@ public class StopFragment extends RxFragment {
     @Inject
     Realm mRealm;
     private OneMinuteTimer mTimer;
+    private Handler mHandler;
+    private Runnable mChangeHandler;
 
     public StopFragment() {
         // Required empty public constructor
@@ -136,8 +129,17 @@ public class StopFragment extends RxFragment {
         mTimer = new OneMinuteTimer();
         mTimer.onCreate(this::updateNextBus);
 
+        mHandler = new Handler();
+        mChangeHandler = () -> {
+            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
+        };
+
+        // Update the display only if there is a realm
+        // change and quiet for at least two seconds afterward
+        // to avoid many repaints
         mRealm.addChangeListener(() -> {
-            mAdapter.notifyDataSetChanged();
+            mHandler.removeCallbacks(mChangeHandler);
+            mHandler.postDelayed(mChangeHandler, 2000);
         });
 
         return mBinding.getRoot();
@@ -176,12 +178,14 @@ public class StopFragment extends RxFragment {
         super.onDestroy();
         mRealm.close();
         mTimer.onDestroy();
+        mHandler.removeCallbacks(mChangeHandler);
     }
 
     @Override
     public void onPause() {
         super.onPause();
         mTimer.onPause();
+        mHandler.removeCallbacks(mChangeHandler);
     }
 
     @Override
@@ -209,7 +213,7 @@ public class StopFragment extends RxFragment {
     public void onEvent(StopDataChangedEvent event) {
         Log.e("StopFragment", "Got StopDataChangedEvent");
         if (mAdapter != null) {
-            mAdapter.notifyDataSetChanged();
+            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
         }
     }
 }
