@@ -68,12 +68,15 @@ public class DataManager {
                 .observeOn(Schedulers.io())
                 .subscribeOn(Schedulers.io())
                 .map(stopId -> {
-                    try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
+                    Realm realm = Realm.getInstance(mRealmConfiguration);
+                    try {
                         Stop stop1 = realm.where(Stop.class).equalTo("stop_id", stopId).findFirst();
                         realm.beginTransaction();
                         stop1.setNextBus(getNextBus(stop1));
                         realm.commitTransaction();
                         return true;
+                    } finally {
+                        realm.close();
                     }
                 })
                 .subscribe(
