@@ -12,24 +12,24 @@ import android.support.v4.view.GravityCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
+import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.cesarferreira.rxpaper.RxPaper;
+import com.squareup.otto.Bus;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
 import org.nsdev.apps.transittamer.App;
 import org.nsdev.apps.transittamer.Constants;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.ActivityMainBinding;
-import org.nsdev.apps.transittamer.fragment.MapFragment;
-import org.nsdev.apps.transittamer.fragment.RouteFragment;
+import org.nsdev.apps.transittamer.events.FavouriteStopsChangedEvent;
 import org.nsdev.apps.transittamer.fragment.StopFragment;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
 import org.nsdev.apps.transittamer.model.Stop;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
-import org.nsdev.apps.transittamer.net.model.Agency;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,10 +37,10 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import retrofit2.adapter.rxjava.HttpException;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
+import timber.log.Timber;
 
 public class MainActivity extends RxAppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -52,6 +52,9 @@ public class MainActivity extends RxAppCompatActivity
     @Inject
     TransitTamerAPI mApi;
     private ActivityMainBinding mBinding;
+
+    @Inject
+    Bus mBus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +69,7 @@ public class MainActivity extends RxAppCompatActivity
         FloatingActionButton fab = mBinding.appBar.fab;
         fab.setOnClickListener(view -> {
 
+            /*
             mApi.getAgency()
                     .compose(bindToLifecycle())
                     .subscribeOn(Schedulers.io())
@@ -102,6 +106,45 @@ public class MainActivity extends RxAppCompatActivity
                                     Log.e(TAG, "Favourite Stops migrated successfully.");
                                 });
                     }).subscribe();
+                    */
+
+            new MaterialDialog.Builder(this)
+                    .title(R.string.stops_add_stop)
+                    .content(R.string.stops_add_stop_content)
+                    .inputType(InputType.TYPE_CLASS_NUMBER)
+                    .input(R.string.stops_input_hint, 0, (dialog, input) -> {
+                        // Add the stop
+                        Timber.d("Add stop %s", input);
+
+                        Snackbar.make(view, "Adding Stop " + input, Snackbar.LENGTH_LONG)
+                                .setAction("Action", null)
+                                .show();
+
+                        RxPaper.book()
+                                .read(Constants.KEY_FAVOURITE_STOPS, new ArrayList<Stop>())
+                                .compose(bindToLifecycle())
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(stops -> {
+
+                                            Observable.from(Arrays.asList(input.toString()))
+                                                    .observeOn(Schedulers.io())
+                                                    .subscribeOn(AndroidSchedulers.mainThread())
+                                                    .concatMap(s -> mApi.getStop(s))
+                                                    .doOnNext(stop -> stops.add(Stop.fromNetModel(stop)))
+                                                    .doOnCompleted(() -> {
+                                                        RxPaper.book()
+                                                                .write(Constants.KEY_FAVOURITE_STOPS, stops)
+                                                                .subscribe(success -> {
+                                                                    mBus.post(new FavouriteStopsChangedEvent());
+                                                                });
+                                                    }).subscribe();
+                                        },
+                                        error -> {
+
+                                        });
+                    }).show();
+
 
         });
 
@@ -180,9 +223,9 @@ public class MainActivity extends RxAppCompatActivity
 
     private void setupViewPager(ViewPager viewPager) {
         ViewPagerAdapter adapter = new ViewPagerAdapter(getSupportFragmentManager());
-        adapter.addFragment(StopFragment.newInstance(), "Stop");
-        adapter.addFragment(RouteFragment.newInstance(null, null), "Route");
-        adapter.addFragment(MapFragment.newInstance(null, null), "Map");
+        adapter.addFragment(StopFragment.newInstance(), getString(R.string.tab_stops));
+        //adapter.addFragment(RouteFragment.newInstance(null, null), getString(R.string.tab_routes));
+        //adapter.addFragment(MapFragment.newInstance(null, null), getString(R.string.tab_map));
         viewPager.setAdapter(adapter);
     }
 

@@ -27,6 +27,7 @@ import org.nsdev.apps.transittamer.Constants;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.FragmentStopBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopBinding;
+import org.nsdev.apps.transittamer.events.FavouriteStopsChangedEvent;
 import org.nsdev.apps.transittamer.events.StopDataChangedEvent;
 import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.model.Stop;
@@ -162,8 +163,12 @@ public class StopFragment extends RxFragment {
 
     @Override
     public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
+        refreshStops();
+        super.onViewStateRestored(savedInstanceState);
+    }
 
-        RxPaper.with(getContext())
+    private void refreshStops() {
+        RxPaper.book()
                 .read(Constants.KEY_FAVOURITE_STOPS, new ArrayList<Stop>())
                 .compose(bindToLifecycle())
                 .subscribeOn(Schedulers.io())
@@ -175,9 +180,6 @@ public class StopFragment extends RxFragment {
                     }
                     mAdapter.notifyDataSetChanged();
                 });
-
-
-        super.onViewStateRestored(savedInstanceState);
     }
 
     @Subscribe
@@ -186,5 +188,10 @@ public class StopFragment extends RxFragment {
         if (mAdapter != null) {
             mAdapter.notifyDataSetChanged();
         }
+    }
+
+    @Subscribe
+    public void onEvent(FavouriteStopsChangedEvent event) {
+        refreshStops();
     }
 }

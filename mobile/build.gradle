@@ -41,7 +41,7 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    wearApp project(':wear')
+    //wearApp project(':wear')
     testCompile 'junit:junit:4.12'
     compile 'com.android.support:appcompat-v7:24.2.0'
     compile 'com.android.support:design:24.2.0'
@@ -62,7 +62,13 @@ dependencies {
     compile 'com.j256.ormlite:ormlite-android:4.48'
 
     // New database
-    compile 'com.cesarferreira.rxpaper:rxpaper:0.3.3'
+    compile 'com.cesarferreira.rxpaper:rxpaper:0.4.1'
+
+    // UI
+    compile 'com.afollestad.material-dialogs:core:0.9.0.1'
+
+    // Logging
+    compile 'com.jakewharton.timber:timber:4.3.0'
 
     // REST
     compile 'com.squareup.retrofit2:retrofit:2.1.0'

@@ -20,6 +20,8 @@ import org.nsdev.apps.transittamer.modules.UserModule;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import timber.log.Timber;
+
 /**
  * Main application subclass.
  * <p>
@@ -46,13 +48,19 @@ public class App extends Application {
                     .build();
         }
 
-        RxPaper.with(this)
+        RxPaper.init(this);
+
+        RxPaper.book()
                 .exists(Constants.KEY_FAVOURITE_STOPS)
                 .subscribe(exists -> {
                     if (!exists) {
                         migrateLegacyData();
                     }
                 });
+
+        if (BuildConfig.DEBUG) {
+            Timber.plant(new Timber.DebugTree());
+        }
     }
 
     private void migrateLegacyData() {
@@ -76,7 +84,7 @@ public class App extends Application {
 
             }
 
-            RxPaper.with(this)
+            RxPaper.book()
                     .write(Constants.KEY_FAVOURITE_STOPS, newStops)
                     .subscribe(success -> {
                         Log.e(TAG, "Favourite Stops migrated successfully.");

@@ -53,7 +53,7 @@ public class DataManager {
                 .subscribeOn(Schedulers.computation())
                 .subscribe(routes -> {
 
-                    RxPaper.with(mContext)
+                    RxPaper.book()
                             .write("routes-" + stop.getStopId(), routes)
                             .subscribe(success -> {
                                 syncStopSchedule(stop);
@@ -66,7 +66,7 @@ public class DataManager {
     }
 
     private void syncStopSchedule(Stop stop) {
-        RxPaper.with(mContext)
+        RxPaper.book()
                 .read("routes-" + stop.getStopId(), new ArrayList<Route>())
                 .concatMap(Observable::from)
                 .subscribeOn(Schedulers.io())
@@ -75,17 +75,15 @@ public class DataManager {
                                 .map(l -> new Pair<>(route, l))
                 )
                 .flatMap(routeSchedule ->
-                        RxPaper.with(mContext)
+                        RxPaper.book()
                                 .write(String.format("schedule-%s-%s", stop.getStopId(), routeSchedule.first.route_id), routeSchedule.second)
                 )
                 .subscribe(success -> {
                     Log.e("DataManager", "Sync Stop Schedule success: " + success);
-                    if (success) {
-                        try {
-                            syncNextBus(stop);
-                        } catch (Throwable ex) {
-                            Log.e("DataManager", "Oops", ex);
-                        }
+                    try {
+                        syncNextBus(stop);
+                    } catch (Throwable ex) {
+                        Log.e("DataManager", "Oops", ex);
                     }
                 }, error -> {
                     Log.e("DataManager", "Oops 2", error);
@@ -94,7 +92,7 @@ public class DataManager {
     }
 
     public Observable<String> getStopRoutes(Stop stop) {
-        return RxPaper.with(mContext)
+        return RxPaper.book()
                 .read("routes-" + stop.getStopCode())
                 .subscribeOn(Schedulers.io())
                 .map(o -> {
@@ -112,7 +110,7 @@ public class DataManager {
     }
 
     public Observable<String> getNextBus(Stop stop) {
-        return RxPaper.with(mContext)
+        return RxPaper.book()
                 .read("next-bus-" + stop.getStopCode(), "")
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread());
@@ -146,11 +144,11 @@ public class DataManager {
     private void syncNextBus(Stop stop) {
         final NextCalculationState state = new NextCalculationState();
 
-        RxPaper.with(mContext)
+        RxPaper.book()
                 .read("routes-" + stop.getStopId(), new ArrayList<Route>())
                 .subscribeOn(AndroidSchedulers.mainThread())
                 .flatMap(Observable::from)
-                .flatMap(route -> RxPaper.with(mContext)
+                .flatMap(route -> RxPaper.book()
                         .read(String.format("schedule-%s-%s", stop.getStopId(), route.route_id), new ArrayList<StopTime>())
                         .map(stopTimes -> new Pair<Route, List<StopTime>>(route, stopTimes))
                 )
@@ -174,14 +172,11 @@ public class DataManager {
                         }, () -> {
                             synchronized (state) {
                                 String nextBus = state.toString();
-                                RxPaper.with(mContext)
+                                RxPaper.book()
                                         .write("next-bus-" + stop.getStopCode(), nextBus)
                                         .observeOn(AndroidSchedulers.mainThread())
-                                        .subscribe(aBoolean -> {
-                                            Log.e("NextBus", nextBus + " " + aBoolean + " " + Thread.currentThread().getName());
-                                            if (aBoolean) {
-                                                AndroidSchedulers.mainThread().createWorker().schedule(() -> mBus.post(new StopDataChangedEvent()), 5, TimeUnit.SECONDS);
-                                            }
+                                        .subscribe(book -> {
+                                            AndroidSchedulers.mainThread().createWorker().schedule(() -> mBus.post(new StopDataChangedEvent()), 5, TimeUnit.SECONDS);
                                         }, error -> {
                                             Log.e("DataManager", "oops 5", error);
                                         });
