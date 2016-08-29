@@ -10,12 +10,13 @@ import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.widget.Toolbar;
+import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
 import org.nsdev.apps.transittamer.App;
@@ -69,58 +70,39 @@ public class MainActivity extends RxAppCompatActivity
         FloatingActionButton fab = mBinding.appBar.fab;
         fab.setOnClickListener(view -> {
 
-            /*
-            mApi.getAgency()
-                    .compose(bindToLifecycle())
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(agency -> {
-                        Agency a = (Agency) agency;
-                        Snackbar.make(view, "Got agency: " + a.agency_name, Snackbar.LENGTH_LONG)
-                                .setAction("Action", null)
-                                .show();
-                    }, throwable -> {
+            new MaterialDialog.Builder(this)
+                    .title(R.string.stops_add_stop)
+                    .content(R.string.stops_add_stop_content)
+                    .inputType(InputType.TYPE_CLASS_NUMBER)
+                    .input(R.string.stops_input_hint, 0, (dialog, input) -> {
+                        RealmList<Stop> newStops = new RealmList<>();
 
-                        if (throwable instanceof HttpException) {
-                            HttpException httpException = (HttpException) throwable;
+                        Observable.from(Arrays.asList(input.toString()))
+                                .concatMap(s -> mApi.getStop(s))
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribeOn(Schedulers.io())
+                                .subscribe(
+                                        stop -> {
+                                            mRealm.beginTransaction();
+                                            newStops.add(mRealm.copyToRealmOrUpdate(stop));
+                                            mRealm.commitTransaction();
+                                        },
+                                        error -> {
+                                            Log.e("MainActivity", "Error", error);
+                                        },
+                                        () -> {
+                                            FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+                                            mRealm.beginTransaction();
+                                            favouriteStops.getStops().addAll(newStops);
+                                            mRealm.commitTransaction();
+                                        }
+                                );
+                    }).show();
 
-                            Snackbar.make(view, "Hmm: " + httpException.code(), Snackbar.LENGTH_LONG)
-                                    .setAction("Action", null)
-                                    .show();
-
-                        }
-                    });
-
-                    */
-
-
-            RealmList<Stop> newStops = new RealmList<>();
-
-            Observable.from(Arrays.asList("6604", "6475", "7600", "6602", "6601", "6651", "5999", "8418", "6654", "5150", "3951", "5078", "9820"))
-                    .concatMap(s -> mApi.getStop(s))
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribeOn(Schedulers.io())
-                    .subscribe(
-                            stop -> {
-                                mRealm.beginTransaction();
-                                newStops.add(mRealm.copyToRealmOrUpdate(stop));
-                                mRealm.commitTransaction();
-                            },
-                            error -> {
-                                Log.e("MainActivity", "Error", error);
-                            },
-                            () -> {
-                                FavouriteStops favouriteStops = mRealm.allObjects(FavouriteStops.class).get(0);
-                                mRealm.beginTransaction();
-                                mRealm.copyToRealmOrUpdate(newStops);
-                                favouriteStops.setStops(newStops);
-                                mRealm.commitTransaction();
-                                Log.e(TAG, "Favourite Stops migrated successfully.");
-                            }
-                    );
 
         });
 
+        /*
         DrawerLayout drawer = mBinding.drawerLayout;
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
@@ -129,7 +111,7 @@ public class MainActivity extends RxAppCompatActivity
 
         NavigationView navigationView = mBinding.navView;
         navigationView.setNavigationItemSelectedListener(this);
-
+*/
         ViewPager viewPager = mBinding.appBar.content.viewpager;
         setupViewPager(viewPager);
 

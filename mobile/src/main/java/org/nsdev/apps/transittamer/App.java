@@ -19,7 +19,6 @@ import org.nsdev.apps.transittamer.modules.UserModule;
 import org.nsdev.apps.transittamer.utils.DataUtils;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
@@ -55,7 +54,7 @@ public class App extends Application {
                 .deleteRealmIfMigrationNeeded()
                 .build();
         Realm realm = Realm.getInstance(config);
-        if (realm.allObjects(FavouriteStops.class).size() == 0) {
+        if (realm.where(FavouriteStops.class).findAll().size() == 0) {
             migrateLegacyData(realm);
         }
         realm.close();

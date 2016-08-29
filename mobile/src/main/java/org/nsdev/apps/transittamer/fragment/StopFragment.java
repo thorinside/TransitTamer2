@@ -107,12 +107,8 @@ public class StopFragment extends RxFragment {
                 Stop stop = mStops.get(position);
                 binding.setStop(stop);
 
-                if (binding.map.getMap() == null) {
-                    binding.map.onCreate(null);
-                    binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
-                } else {
-                    setupMap(stop, binding.map.getMap());
-                }
+                binding.map.onCreate(null);
+                binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
 
                 binding.setRoutes(stop.getStopRoutes());
                 binding.setNext(stop.getNextBus());
@@ -137,7 +133,7 @@ public class StopFragment extends RxFragment {
         // Update the display only if there is a realm
         // change and quiet for at least two seconds afterward
         // to avoid many repaints
-        mRealm.addChangeListener(() -> {
+        mRealm.addChangeListener((v) -> {
             mHandler.removeCallbacks(mChangeHandler);
             mHandler.postDelayed(mChangeHandler, 2000);
         });
@@ -197,7 +193,7 @@ public class StopFragment extends RxFragment {
     @Override
     public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
 
-        FavouriteStops favouriteStops = mRealm.allObjects(FavouriteStops.class).first();
+        FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
         mStops = favouriteStops.getStops();
 
         for (Stop stop : mStops) {
@@ -205,6 +201,14 @@ public class StopFragment extends RxFragment {
         }
 
         mAdapter.notifyDataSetChanged();
+
+        favouriteStops.addChangeListener(element -> {
+            mStops = favouriteStops.getStops();
+            mAdapter.notifyDataSetChanged();
+            for (Stop stop : mStops) {
+                mDataManager.syncStop(stop);
+            }
+        });
 
         super.onViewStateRestored(savedInstanceState);
     }
