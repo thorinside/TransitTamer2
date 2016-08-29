@@ -11,7 +11,7 @@ import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 
 import dagger.Module;
 import dagger.Provides;
-import retrofit.Retrofit;
+import retrofit2.Retrofit;
 
 /**
  * Created by neal on 2015-11-30.

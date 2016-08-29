@@ -7,7 +7,7 @@ import org.nsdev.apps.transittamer.App;
 import javax.inject.Singleton;
 
 import dagger.Component;
-import retrofit.Retrofit;
+import retrofit2.Retrofit;
 
 /**
  * Created by neal on 2015-11-30.

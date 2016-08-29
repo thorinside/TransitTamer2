@@ -2,17 +2,16 @@ package org.nsdev.apps.transittamer.modules;
 
 import android.content.Context;
 
-import com.squareup.okhttp.Cache;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.logging.HttpLoggingInterceptor;
-
 import javax.inject.Singleton;
 
 import dagger.Module;
 import dagger.Provides;
-import retrofit.MoshiConverterFactory;
-import retrofit.Retrofit;
-import retrofit.RxJavaCallAdapterFactory;
+import okhttp3.Cache;
+import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
+import retrofit2.converter.moshi.MoshiConverterFactory;
 
 /**
  * Module for providing network related dependencies.
@@ -32,19 +31,18 @@ public class NetModule {
     @Singleton
     @Provides
     public OkHttpClient provideOkHttpClient() {
-        OkHttpClient okHttpClient = new OkHttpClient();
-
         // Set up some logging
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
-        okHttpClient.interceptors().add(interceptor);
 
         // Set up some caching
         int cacheSize = 10 * 1024 * 1024; // 10 MiB
         Cache cache = new Cache(mContext.getCacheDir(), cacheSize);
-        okHttpClient.setCache(cache);
 
-        return okHttpClient;
+        return new OkHttpClient.Builder()
+                .addInterceptor(interceptor)
+                .cache(cache)
+                .build();
     }
 
     @Singleton
