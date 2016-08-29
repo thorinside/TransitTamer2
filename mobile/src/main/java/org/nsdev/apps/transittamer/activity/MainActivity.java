@@ -4,32 +4,30 @@ import android.databinding.DataBindingUtil;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.widget.Toolbar;
-import android.text.InputType;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import com.afollestad.materialdialogs.MaterialDialog;
-import com.cesarferreira.rxpaper.RxPaper;
-import com.squareup.otto.Bus;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
 import org.nsdev.apps.transittamer.App;
-import org.nsdev.apps.transittamer.Constants;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.ActivityMainBinding;
-import org.nsdev.apps.transittamer.events.FavouriteStopsChangedEvent;
+import org.nsdev.apps.transittamer.fragment.MapFragment;
+import org.nsdev.apps.transittamer.fragment.RouteFragment;
 import org.nsdev.apps.transittamer.fragment.StopFragment;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
-import org.nsdev.apps.transittamer.model.Stop;
+import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
+import org.nsdev.apps.transittamer.net.model.Stop;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,10 +35,11 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import io.realm.Realm;
+import io.realm.RealmList;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
-import timber.log.Timber;
 
 public class MainActivity extends RxAppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -51,10 +50,11 @@ public class MainActivity extends RxAppCompatActivity
 
     @Inject
     TransitTamerAPI mApi;
-    private ActivityMainBinding mBinding;
 
     @Inject
-    Bus mBus;
+    Realm mRealm;
+
+    private ActivityMainBinding mBinding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,64 +91,36 @@ public class MainActivity extends RxAppCompatActivity
                         }
                     });
 
-
-            ArrayList<Stop> newStops = new ArrayList<>();
-
-            Observable.from(Arrays.asList("6604", "6475", "7600", "6602", "6601", "6651", "5999", "8418", "6654", "5150", "3951", "5078", "9820"))
-                    .observeOn(Schedulers.io())
-                    .subscribeOn(AndroidSchedulers.mainThread())
-                    .concatMap(s -> mApi.getStop(s))
-                    .doOnNext(stop -> newStops.add(Stop.fromNetModel(stop)))
-                    .doOnCompleted(() -> {
-                        RxPaper.with(this)
-                                .write(Constants.KEY_FAVOURITE_STOPS, newStops)
-                                .subscribe(success -> {
-                                    Log.e(TAG, "Favourite Stops migrated successfully.");
-                                });
-                    }).subscribe();
                     */
 
-            new MaterialDialog.Builder(this)
-                    .title(R.string.stops_add_stop)
-                    .content(R.string.stops_add_stop_content)
-                    .inputType(InputType.TYPE_CLASS_NUMBER)
-                    .input(R.string.stops_input_hint, 0, (dialog, input) -> {
-                        // Add the stop
-                        Timber.d("Add stop %s", input);
 
-                        Snackbar.make(view, "Adding Stop " + input, Snackbar.LENGTH_LONG)
-                                .setAction("Action", null)
-                                .show();
+            RealmList<Stop> newStops = new RealmList<>();
 
-                        RxPaper.book()
-                                .read(Constants.KEY_FAVOURITE_STOPS, new ArrayList<Stop>())
-                                .compose(bindToLifecycle())
-                                .subscribeOn(Schedulers.io())
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .subscribe(stops -> {
-
-                                            Observable.from(Arrays.asList(input.toString()))
-                                                    .observeOn(Schedulers.io())
-                                                    .subscribeOn(AndroidSchedulers.mainThread())
-                                                    .concatMap(s -> mApi.getStop(s))
-                                                    .doOnNext(stop -> stops.add(Stop.fromNetModel(stop)))
-                                                    .doOnCompleted(() -> {
-                                                        RxPaper.book()
-                                                                .write(Constants.KEY_FAVOURITE_STOPS, stops)
-                                                                .subscribe(success -> {
-                                                                    mBus.post(new FavouriteStopsChangedEvent());
-                                                                });
-                                                    }).subscribe();
-                                        },
-                                        error -> {
-
-                                        });
-                    }).show();
-
+            Observable.from(Arrays.asList("6604", "6475", "7600", "6602", "6601", "6651", "5999", "8418", "6654", "5150", "3951", "5078", "9820"))
+                    .concatMap(s -> mApi.getStop(s))
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(
+                            stop -> {
+                                mRealm.beginTransaction();
+                                newStops.add(mRealm.copyToRealmOrUpdate(stop));
+                                mRealm.commitTransaction();
+                            },
+                            error -> {
+                                Log.e("MainActivity", "Error", error);
+                            },
+                            () -> {
+                                FavouriteStops favouriteStops = mRealm.allObjects(FavouriteStops.class).get(0);
+                                mRealm.beginTransaction();
+                                mRealm.copyToRealmOrUpdate(newStops);
+                                favouriteStops.setStops(newStops);
+                                mRealm.commitTransaction();
+                                Log.e(TAG, "Favourite Stops migrated successfully.");
+                            }
+                    );
 
         });
 
-        /* Don't need a drawer yet
         DrawerLayout drawer = mBinding.drawerLayout;
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
@@ -157,12 +129,17 @@ public class MainActivity extends RxAppCompatActivity
 
         NavigationView navigationView = mBinding.navView;
         navigationView.setNavigationItemSelectedListener(this);
-        */
 
         ViewPager viewPager = mBinding.appBar.content.viewpager;
         setupViewPager(viewPager);
 
         mBinding.appBar.tabs.setupWithViewPager(mBinding.appBar.content.viewpager);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mRealm.close();
     }
 
     @Override
@@ -191,6 +168,7 @@ public class MainActivity extends RxAppCompatActivity
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -223,9 +201,9 @@ public class MainActivity extends RxAppCompatActivity
 
     private void setupViewPager(ViewPager viewPager) {
         ViewPagerAdapter adapter = new ViewPagerAdapter(getSupportFragmentManager());
-        adapter.addFragment(StopFragment.newInstance(), getString(R.string.tab_stops));
-        //adapter.addFragment(RouteFragment.newInstance(null, null), getString(R.string.tab_routes));
-        //adapter.addFragment(MapFragment.newInstance(null, null), getString(R.string.tab_map));
+        adapter.addFragment(StopFragment.newInstance(), "Stop");
+        adapter.addFragment(RouteFragment.newInstance(null, null), "Route");
+        adapter.addFragment(MapFragment.newInstance(null, null), "Map");
         viewPager.setAdapter(adapter);
     }
 

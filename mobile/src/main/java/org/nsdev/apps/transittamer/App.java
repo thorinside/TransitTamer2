@@ -3,12 +3,12 @@ package org.nsdev.apps.transittamer;
 import android.app.Application;
 import android.util.Log;
 
-import com.cesarferreira.rxpaper.RxPaper;
 import com.j256.ormlite.dao.Dao;
 
 import org.nsdev.apps.transittamer.legacy.SqlDataHelper;
 import org.nsdev.apps.transittamer.legacy.Stop;
 import org.nsdev.apps.transittamer.legacy.StopNickname;
+import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.modules.AppModule;
 import org.nsdev.apps.transittamer.modules.DaggerNetComponent;
 import org.nsdev.apps.transittamer.modules.DaggerUserComponent;
@@ -16,11 +16,14 @@ import org.nsdev.apps.transittamer.modules.NetComponent;
 import org.nsdev.apps.transittamer.modules.NetModule;
 import org.nsdev.apps.transittamer.modules.UserComponent;
 import org.nsdev.apps.transittamer.modules.UserModule;
+import org.nsdev.apps.transittamer.utils.DataUtils;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
 
-import timber.log.Timber;
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
+import io.realm.RealmList;
 
 /**
  * Main application subclass.
@@ -48,29 +51,24 @@ public class App extends Application {
                     .build();
         }
 
-        RxPaper.init(this);
-
-        RxPaper.book()
-                .exists(Constants.KEY_FAVOURITE_STOPS)
-                .subscribe(exists -> {
-                    if (!exists) {
-                        migrateLegacyData();
-                    }
-                });
-
-        if (BuildConfig.DEBUG) {
-            Timber.plant(new Timber.DebugTree());
+        RealmConfiguration config = new RealmConfiguration.Builder(this)
+                .deleteRealmIfMigrationNeeded()
+                .build();
+        Realm realm = Realm.getInstance(config);
+        if (realm.allObjects(FavouriteStops.class).size() == 0) {
+            migrateLegacyData(realm);
         }
+        realm.close();
     }
 
-    private void migrateLegacyData() {
+    private void migrateLegacyData(Realm realm) {
         // Check for legacy database and move its data over to Paper
         SqlDataHelper helper = new SqlDataHelper(this);
         try {
             Dao<Stop, Object> stopDao = helper.getStopDao();
             Dao<StopNickname, Object> stopNicknameDao = helper.getStopNicknameDao();
 
-            ArrayList<org.nsdev.apps.transittamer.model.Stop> newStops = new ArrayList<>();
+            RealmList<org.nsdev.apps.transittamer.net.model.Stop> newStops = new RealmList<>();
 
             for (Stop stop : stopDao.queryForAll()) {
                 Log.e(TAG, "Stop: " + stop.toString());
@@ -80,15 +78,18 @@ public class App extends Application {
                 }
                 Log.e(TAG, "Stop nickname: " + stop.getNickName());
 
-                newStops.add(org.nsdev.apps.transittamer.model.Stop.fromLegacy(stop));
-
+                org.nsdev.apps.transittamer.net.model.Stop newStop = DataUtils.fromLegacy(stop);
+                newStop.setNickname(stop.getNickName());
+                newStops.add(newStop);
             }
 
-            RxPaper.book()
-                    .write(Constants.KEY_FAVOURITE_STOPS, newStops)
-                    .subscribe(success -> {
-                        Log.e(TAG, "Favourite Stops migrated successfully.");
-                    });
+            realm.beginTransaction();
+            FavouriteStops favStops = new FavouriteStops();
+            favStops.setStops(newStops);
+            realm.copyToRealmOrUpdate(favStops);
+            realm.commitTransaction();
+
+            Log.e(TAG, "Favourite Stops migrated successfully.");
 
         } catch (SQLException e) {
             e.printStackTrace();

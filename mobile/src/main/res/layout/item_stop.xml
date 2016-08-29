@@ -6,7 +6,7 @@
 
     <data>
 
-        <import type="org.nsdev.apps.transittamer.model.Stop"/>
+        <import type="org.nsdev.apps.transittamer.net.model.Stop"/>
 
         <variable
             name="stop"
@@ -32,6 +32,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:animateLayoutChanges="true"
             card_view:cardCornerRadius="2dp"
             card_view:cardBackgroundColor="@android:color/white"
             card_view:cardUseCompatPadding="true"
@@ -63,14 +64,14 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@{stop.stopCode}"
+                        android:text="@{stop.stop_code}"
                         android:textAppearance="@style/TextAppearance.AppCompat.Title"
                         tools:text="6604"/>
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@{stop.name}"
+                        android:text="@{stop.stop_name}"
                         android:textAppearance="@style/TextAppearance.AppCompat.Small"
                         android:maxLines="2"
                         android:lines="2"

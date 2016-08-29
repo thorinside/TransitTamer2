@@ -3,6 +3,7 @@ package org.nsdev.apps.transittamer.fragment;
 
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
@@ -11,7 +12,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.cesarferreira.rxpaper.RxPaper;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptor;
@@ -23,26 +23,20 @@ import com.squareup.otto.Subscribe;
 import com.trello.rxlifecycle.components.support.RxFragment;
 
 import org.nsdev.apps.transittamer.App;
-import org.nsdev.apps.transittamer.Constants;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.FragmentStopBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopBinding;
-import org.nsdev.apps.transittamer.events.FavouriteStopsChangedEvent;
 import org.nsdev.apps.transittamer.events.StopDataChangedEvent;
 import org.nsdev.apps.transittamer.managers.DataManager;
-import org.nsdev.apps.transittamer.model.Stop;
+import org.nsdev.apps.transittamer.model.FavouriteStops;
+import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 
 import javax.inject.Inject;
 
-import rx.Subscription;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
-import rx.subscriptions.CompositeSubscription;
+import io.realm.Realm;
+import io.realm.RealmList;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -52,13 +46,19 @@ import rx.subscriptions.CompositeSubscription;
 public class StopFragment extends RxFragment {
     private FragmentStopBinding mBinding;
     private BindingAdapter<ItemStopBinding> mAdapter;
-    private ArrayList<Stop> mStops;
+    private RealmList<Stop> mStops;
 
     @Inject
     DataManager mDataManager;
 
     @Inject
     Bus mBus;
+
+    @Inject
+    Realm mRealm;
+    private OneMinuteTimer mTimer;
+    private Handler mHandler;
+    private Runnable mChangeHandler;
 
     public StopFragment() {
         // Required empty public constructor
@@ -94,7 +94,7 @@ public class StopFragment extends RxFragment {
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         mBinding.recyclerView.setLayoutManager(layout);
 
-        mStops = new ArrayList<>();
+        mStops = new RealmList<>();
 
         mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
             @Override
@@ -102,45 +102,57 @@ public class StopFragment extends RxFragment {
                 return mStops.size();
             }
 
-            Map<ItemStopBinding, CompositeSubscription> bindingSubscriptions = new HashMap<>();
-
             @Override
             protected void updateBinding(ItemStopBinding binding, int position) {
-                if (bindingSubscriptions.containsKey(binding)) {
-                    bindingSubscriptions.remove(binding).unsubscribe();
-                }
                 Stop stop = mStops.get(position);
                 binding.setStop(stop);
 
-                binding.map.onCreate(null);
-                binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
+                if (binding.map.getMap() == null) {
+                    binding.map.onCreate(null);
+                    binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
+                } else {
+                    setupMap(stop, binding.map.getMap());
+                }
 
-                Subscription subscription = mDataManager.getStopRoutes(stop).subscribe(binding::setRoutes, error -> {
-                });
-                Subscription subscription1 = mDataManager.getNextBus(stop).subscribe(binding::setNext, error -> {
-                });
-
-                CompositeSubscription compositeSubscription = new CompositeSubscription(subscription, subscription1);
-                bindingSubscriptions.put(binding, compositeSubscription);
+                binding.setRoutes(stop.getStopRoutes());
+                binding.setNext(stop.getNextBus());
             }
 
             @Override
             protected void recycleBinding(ItemStopBinding binding) {
                 Log.e("StopFragment", "Binding Recycling");
-                CompositeSubscription compositeSubscription = bindingSubscriptions.remove(binding);
-                if (compositeSubscription != null) {
-                    compositeSubscription.unsubscribe();
-                }
             }
         };
 
         mBinding.recyclerView.setAdapter(mAdapter);
 
+        mTimer = new OneMinuteTimer();
+        mTimer.onCreate(this::updateNextBus);
+
+        mHandler = new Handler();
+        mChangeHandler = () -> {
+            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
+        };
+
+        // Update the display only if there is a realm
+        // change and quiet for at least two seconds afterward
+        // to avoid many repaints
+        mRealm.addChangeListener(() -> {
+            mHandler.removeCallbacks(mChangeHandler);
+            mHandler.postDelayed(mChangeHandler, 2000);
+        });
+
         return mBinding.getRoot();
     }
 
+    private void updateNextBus() {
+        for (Stop stop : mStops) {
+            mDataManager.syncStopNextBus(stop);
+        }
+    }
+
     private void setupMap(Stop stop, GoogleMap googleMap) {
-        LatLng latLng = new LatLng(stop.getLatitude(), stop.getLongitude());
+        LatLng latLng = new LatLng(stop.getStop_lat(), stop.getStop_lon());
         googleMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
 
         // Doesn't support vector drawables for whatever reason
@@ -162,36 +174,46 @@ public class StopFragment extends RxFragment {
     }
 
     @Override
-    public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
-        refreshStops();
-        super.onViewStateRestored(savedInstanceState);
+    public void onDestroy() {
+        super.onDestroy();
+        mRealm.close();
+        mTimer.onDestroy();
+        mHandler.removeCallbacks(mChangeHandler);
     }
 
-    private void refreshStops() {
-        RxPaper.book()
-                .read(Constants.KEY_FAVOURITE_STOPS, new ArrayList<Stop>())
-                .compose(bindToLifecycle())
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(stops -> {
-                    mStops = (ArrayList<Stop>) stops;
-                    for (Stop stop : mStops) {
-                        mDataManager.syncStop(stop);
-                    }
-                    mAdapter.notifyDataSetChanged();
-                });
+    @Override
+    public void onPause() {
+        super.onPause();
+        mTimer.onPause();
+        mHandler.removeCallbacks(mChangeHandler);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        mTimer.onResume();
+    }
+
+    @Override
+    public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
+
+        FavouriteStops favouriteStops = mRealm.allObjects(FavouriteStops.class).first();
+        mStops = favouriteStops.getStops();
+
+        for (Stop stop : mStops) {
+            mDataManager.syncStop(stop);
+        }
+
+        mAdapter.notifyDataSetChanged();
+
+        super.onViewStateRestored(savedInstanceState);
     }
 
     @Subscribe
     public void onEvent(StopDataChangedEvent event) {
         Log.e("StopFragment", "Got StopDataChangedEvent");
         if (mAdapter != null) {
-            mAdapter.notifyDataSetChanged();
+            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
         }
-    }
-
-    @Subscribe
-    public void onEvent(FavouriteStopsChangedEvent event) {
-        refreshStops();
     }
 }

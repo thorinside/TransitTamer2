@@ -12,6 +12,8 @@ import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import dagger.Module;
 import dagger.Provides;
 import retrofit2.Retrofit;
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
 
 /**
  * Created by neal on 2015-11-30.
@@ -33,8 +35,8 @@ public class UserModule {
 
     @UserScope
     @Provides
-    DataManager getDataManager(App context, TransitTamerAPI api, Bus bus) {
-        return new DataManager(context, api, bus);
+    DataManager getDataManager(App context, TransitTamerAPI api, Bus bus, RealmConfiguration config) {
+        return new DataManager(context, api, bus, config);
     }
 
     @UserScope
@@ -42,4 +44,21 @@ public class UserModule {
     Bus getBus() {
         return new Bus();
     }
+
+    @UserScope
+    @Provides
+    RealmConfiguration getRealmConfiguration(App context) {
+        RealmConfiguration config = new RealmConfiguration.Builder(context)
+                .deleteRealmIfMigrationNeeded()
+                .build();
+
+        return config;
+    }
+
+    @Provides
+    Realm getRealm(RealmConfiguration config) {
+        Realm realm = Realm.getInstance(config);
+        return realm;
+    }
+
 }
