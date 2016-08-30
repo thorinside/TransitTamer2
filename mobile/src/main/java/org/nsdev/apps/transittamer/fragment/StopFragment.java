@@ -19,14 +19,12 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.squareup.otto.Bus;
-import com.squareup.otto.Subscribe;
 import com.trello.rxlifecycle.components.support.RxFragment;
 
 import org.nsdev.apps.transittamer.App;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.FragmentStopBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopBinding;
-import org.nsdev.apps.transittamer.events.StopDataChangedEvent;
 import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.net.model.Stop;
@@ -211,13 +209,5 @@ public class StopFragment extends RxFragment {
         });
 
         super.onViewStateRestored(savedInstanceState);
-    }
-
-    @Subscribe
-    public void onEvent(StopDataChangedEvent event) {
-        Log.e("StopFragment", "Got StopDataChangedEvent");
-        if (mAdapter != null) {
-            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
-        }
     }
 }
