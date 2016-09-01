@@ -105,16 +105,16 @@ public class StopFragment extends RxFragment {
 
         mHandler = new Handler();
         mChangeHandler = () -> {
-            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
+            mAdapter.notifyItemRangeChanged(0, mStops.size());
         };
 
         // Update the display only if there is a realm
         // change and quiet for at least two seconds afterward
         // to avoid many repaints
-        mRealm.addChangeListener((v) -> {
-            mHandler.removeCallbacks(mChangeHandler);
-            mHandler.postDelayed(mChangeHandler, 2000);
-        });
+//        mRealm.addChangeListener((v) -> {
+//            mHandler.removeCallbacks(mChangeHandler);
+//            mHandler.postDelayed(mChangeHandler, 2000);
+//        });
 
         return mBinding.getRoot();
     }
@@ -230,6 +230,11 @@ public class StopFragment extends RxFragment {
         for (Stop stop : mStops) {
             mDataManager.syncStop(stop);
         }
+
+        mFavouriteStops.addChangeListener(element -> {
+            mHandler.removeCallbacks(mChangeHandler);
+            mHandler.postDelayed(mChangeHandler, 2000);
+        });
 
         super.onViewStateRestored(savedInstanceState);
     }

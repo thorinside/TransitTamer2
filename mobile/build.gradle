@@ -13,7 +13,7 @@ android {
         }
     }
     compileSdkVersion 24
-    buildToolsVersion '23.0.3'
+    buildToolsVersion '24.0.1'
     defaultConfig {
         applicationId "org.nsdev.apps.transittamer"
         minSdkVersion 14
@@ -37,6 +37,10 @@ android {
     }
     dataBinding {
         enabled = true
+    }
+    dexOptions {
+        incremental true
+        javaMaxHeapSize "4g"
     }
 }
 
