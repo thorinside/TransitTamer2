@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:title="@string/tab_stops"
+        android:icon="@drawable/ic_stops_black_24dp"/>
+
+    <item
+        android:title="@string/tab_routes"
+        android:icon="@drawable/ic_routes_black_24dp"/>
+
+    <item
+        android:title="@string/tab_map"
+        android:icon="@drawable/ic_maps_black_24dp"/>
+
+</menu>

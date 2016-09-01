@@ -14,4 +14,5 @@
     <string name="stops_add_stop">Add Stop</string>
     <string name="stops_add_stop_content">Enter a stop number</string>
     <string name="stops_input_hint">Stop Number</string>
+    <string name="coming_soon">Coming Soon</string>
 </resources>

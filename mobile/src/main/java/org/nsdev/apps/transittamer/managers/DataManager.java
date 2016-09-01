@@ -68,15 +68,12 @@ public class DataManager {
                 .observeOn(Schedulers.io())
                 .subscribeOn(Schedulers.io())
                 .map(stopId -> {
-                    Realm realm = Realm.getInstance(mRealmConfiguration);
-                    try {
+                    try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
                         Stop stop1 = realm.where(Stop.class).equalTo("stop_id", stopId).findFirst();
-                        realm.beginTransaction();
-                        stop1.setNextBus(getNextBus(stop1));
-                        realm.commitTransaction();
+                        realm.executeTransaction(realm1 -> {
+                            stop1.setNextBus(getNextBus(stop1));
+                        });
                         return true;
-                    } finally {
-                        realm.close();
                     }
                 })
                 .subscribe(
@@ -91,15 +88,15 @@ public class DataManager {
                 .observeOn(Schedulers.trampoline())
                 .subscribeOn(Schedulers.trampoline())
                 .subscribe(routes -> {
-                    Realm realm = Realm.getInstance(mRealmConfiguration);
-                    realm.beginTransaction();
-                    stop.getRoutes().clear();
-                    stop.getSchedules().clear();
-                    for (Route route : routes) {
-                        stop.getRoutes().add(realm.copyToRealmOrUpdate(route));
+                    try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
+                        realm.executeTransaction(realm1 -> {
+                            stop.getRoutes().clear();
+                            stop.getSchedules().clear();
+                            for (Route route : routes) {
+                                stop.getRoutes().add(realm.copyToRealmOrUpdate(route));
+                            }
+                        });
                     }
-                    realm.commitTransaction();
-                    realm.close();
                     syncStopSchedule(stop);
                 }, error -> {
                     Log.e("DataManager", "Getting Stop Routes", error);
@@ -116,25 +113,23 @@ public class DataManager {
                     .subscribeOn(Schedulers.trampoline())
                     .subscribe(
                             next -> {
-                                realm.beginTransaction();
-                                StopRouteSchedule stopRouteSchedule = new StopRouteSchedule();
-                                stopRouteSchedule.setRoute(route);
-                                stopRouteSchedule.setStop(stop);
-                                RealmList<StopTime> schedule = stopRouteSchedule.getSchedule();
-                                for (StopTime stopTime : next) {
-                                    schedule.add(realm.copyToRealm(stopTime));
-                                }
-                                stopRouteSchedule = realm.copyToRealm(stopRouteSchedule);
-                                stop.getSchedules().add(stopRouteSchedule);
+                                realm.executeTransaction(realm1 -> {
+                                    StopRouteSchedule stopRouteSchedule = new StopRouteSchedule();
+                                    stopRouteSchedule.setRoute(route);
+                                    stopRouteSchedule.setStop(stop);
+                                    RealmList<StopTime> schedule = stopRouteSchedule.getSchedule();
+                                    for (StopTime stopTime : next) {
+                                        schedule.add(realm.copyToRealm(stopTime));
+                                    }
+                                    stopRouteSchedule = realm.copyToRealm(stopRouteSchedule);
+                                    stop.getSchedules().add(stopRouteSchedule);
 
-                                stop.setStopRoutes(getStopRoutes(stop));
-                                stop.setNextBus(getNextBus(stop));
-
-                                realm.commitTransaction();
+                                    stop.setStopRoutes(getStopRoutes(stop));
+                                    stop.setNextBus(getNextBus(stop));
+                                });
                             },
                             error -> {
                                 Log.e("DataManager", "Error syncStopSchedule", error);
-                                realm.cancelTransaction();
                             },
                             () -> {
                                 realm.close();

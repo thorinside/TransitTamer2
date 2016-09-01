@@ -7,6 +7,8 @@ import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -31,10 +33,14 @@ import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 
+import java.util.Date;
+import java.util.List;
+
 import javax.inject.Inject;
 
 import io.realm.Realm;
 import io.realm.RealmList;
+import timber.log.Timber;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -44,7 +50,7 @@ import io.realm.RealmList;
 public class StopFragment extends RxFragment {
     private FragmentStopBinding mBinding;
     private BindingAdapter<ItemStopBinding> mAdapter;
-    private RealmList<Stop> mStops;
+    private List<Stop> mStops;
 
     @Inject
     DataManager mDataManager;
@@ -57,6 +63,7 @@ public class StopFragment extends RxFragment {
     private OneMinuteTimer mTimer;
     private Handler mHandler;
     private Runnable mChangeHandler;
+    private FavouriteStops mFavouriteStops;
 
     public StopFragment() {
         // Required empty public constructor
@@ -89,10 +96,32 @@ public class StopFragment extends RxFragment {
 
         mBus.register(this);
 
+        mStops = new RealmList<>();
+
+        setupRecyclerView();
+
+        mTimer = new OneMinuteTimer();
+        mTimer.onCreate(this::updateNextBus);
+
+        mHandler = new Handler();
+        mChangeHandler = () -> {
+            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
+        };
+
+        // Update the display only if there is a realm
+        // change and quiet for at least two seconds afterward
+        // to avoid many repaints
+        mRealm.addChangeListener((v) -> {
+            mHandler.removeCallbacks(mChangeHandler);
+            mHandler.postDelayed(mChangeHandler, 2000);
+        });
+
+        return mBinding.getRoot();
+    }
+
+    private void setupRecyclerView() {
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         mBinding.recyclerView.setLayoutManager(layout);
-
-        mStops = new RealmList<>();
 
         mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
             @Override
@@ -120,23 +149,27 @@ public class StopFragment extends RxFragment {
 
         mBinding.recyclerView.setAdapter(mAdapter);
 
-        mTimer = new OneMinuteTimer();
-        mTimer.onCreate(this::updateNextBus);
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
+                return false;
+            }
 
-        mHandler = new Handler();
-        mChangeHandler = () -> {
-            mAdapter.notifyItemRangeChanged(0, mStops.size() - 1);
-        };
-
-        // Update the display only if there is a realm
-        // change and quiet for at least two seconds afterward
-        // to avoid many repaints
-        mRealm.addChangeListener((v) -> {
-            mHandler.removeCallbacks(mChangeHandler);
-            mHandler.postDelayed(mChangeHandler, 2000);
+            @Override
+            public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                Timber.d("Swiped item %d", position);
+                FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+                mRealm.executeTransaction(realm -> {
+                    Stop stop = favouriteStops.getStops().get(position);
+                    favouriteStops.getStops().remove(stop);
+                    favouriteStops.setLastUpdated(new Date());
+                    mAdapter.notifyItemRemoved(position);
+                });
+            }
         });
 
-        return mBinding.getRoot();
+        itemTouchHelper.attachToRecyclerView(mBinding.recyclerView);
     }
 
     private void updateNextBus() {
@@ -191,22 +224,12 @@ public class StopFragment extends RxFragment {
     @Override
     public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
 
-        FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
-        mStops = favouriteStops.getStops();
+        mFavouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+        mStops = mFavouriteStops.getStops();
 
         for (Stop stop : mStops) {
             mDataManager.syncStop(stop);
         }
-
-        mAdapter.notifyDataSetChanged();
-
-        favouriteStops.addChangeListener(element -> {
-            mStops = favouriteStops.getStops();
-            mAdapter.notifyDataSetChanged();
-            for (Stop stop : mStops) {
-                mDataManager.syncStop(stop);
-            }
-        });
 
         super.onViewStateRestored(savedInstanceState);
     }

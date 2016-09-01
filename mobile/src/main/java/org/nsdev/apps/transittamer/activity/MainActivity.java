@@ -17,6 +17,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import com.afollestad.materialdialogs.MaterialDialog;
+import com.aurelhubert.ahbottomnavigation.AHBottomNavigation;
+import com.aurelhubert.ahbottomnavigation.AHBottomNavigationAdapter;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
 import org.nsdev.apps.transittamer.App;
@@ -25,6 +27,7 @@ import org.nsdev.apps.transittamer.databinding.ActivityMainBinding;
 import org.nsdev.apps.transittamer.fragment.MapFragment;
 import org.nsdev.apps.transittamer.fragment.RouteFragment;
 import org.nsdev.apps.transittamer.fragment.StopFragment;
+import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
@@ -32,6 +35,7 @@ import org.nsdev.apps.transittamer.net.model.Stop;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -55,7 +59,11 @@ public class MainActivity extends RxAppCompatActivity
     @Inject
     Realm mRealm;
 
+    @Inject
+    DataManager mDataManager;
+
     private ActivityMainBinding mBinding;
+    private ViewPager mViewPager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,18 +91,24 @@ public class MainActivity extends RxAppCompatActivity
                                 .subscribeOn(Schedulers.io())
                                 .subscribe(
                                         stop -> {
-                                            mRealm.beginTransaction();
-                                            newStops.add(mRealm.copyToRealmOrUpdate(stop));
-                                            mRealm.commitTransaction();
+                                            mRealm.executeTransaction(realm -> {
+                                                newStops.add(mRealm.copyToRealmOrUpdate(stop));
+                                            });
                                         },
                                         error -> {
                                             Log.e("MainActivity", "Error", error);
                                         },
                                         () -> {
                                             FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
-                                            mRealm.beginTransaction();
-                                            favouriteStops.getStops().addAll(newStops);
-                                            mRealm.commitTransaction();
+                                            mRealm.executeTransaction(realm -> {
+                                                favouriteStops.getStops().addAll(newStops);
+                                                favouriteStops.setLastUpdated(new Date());
+                                            });
+
+                                            for (Stop newStop : newStops) {
+                                                mDataManager.syncStop(newStop);
+                                            }
+
                                         }
                                 );
                     }).show();
@@ -102,20 +116,27 @@ public class MainActivity extends RxAppCompatActivity
 
         });
 
-        /*
-        DrawerLayout drawer = mBinding.drawerLayout;
-        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
-                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.setDrawerListener(toggle);
-        toggle.syncState();
+        mViewPager = mBinding.appBar.content.viewpager;
+        setupViewPager(mViewPager);
+        setupBottomNavigation();
+    }
 
-        NavigationView navigationView = mBinding.navView;
-        navigationView.setNavigationItemSelectedListener(this);
-*/
-        ViewPager viewPager = mBinding.appBar.content.viewpager;
-        setupViewPager(viewPager);
+    private void setupBottomNavigation() {
+        int[] tabColors = getApplicationContext().getResources().getIntArray(R.array.tab_colors);
+        AHBottomNavigation bottomNavigation = mBinding.appBar.bottomNavigation;
+        AHBottomNavigationAdapter navigationAdapter = new AHBottomNavigationAdapter(this, R.menu.navigation);
+        navigationAdapter.setupWithBottomNavigation(bottomNavigation, tabColors);
+        bottomNavigation.setColored(true);
 
-        mBinding.appBar.tabs.setupWithViewPager(mBinding.appBar.content.viewpager);
+        bottomNavigation.setOnTabSelectedListener((position, wasSelected) -> {
+            mViewPager.setCurrentItem(position, false);
+            if (position != 0) {
+                mBinding.appBar.fab.hide();
+            } else {
+                mBinding.appBar.fab.show();
+            }
+            return true;
+        });
     }
 
     @Override
@@ -187,6 +208,7 @@ public class MainActivity extends RxAppCompatActivity
         adapter.addFragment(RouteFragment.newInstance(null, null), "Route");
         adapter.addFragment(MapFragment.newInstance(null, null), "Map");
         viewPager.setAdapter(adapter);
+        viewPager.setOffscreenPageLimit(3);
     }
 
     class ViewPagerAdapter extends FragmentPagerAdapter {

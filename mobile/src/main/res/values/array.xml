@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="tab1">#e65100</color>
+    <color name="tab2">#c62828</color>
+    <color name="tab3">#2e7d32</color>
+
+    <array name="tab_colors">
+        <item name="tab_1">@color/tab1</item>
+        <item name="tab_2">@color/tab2</item>
+        <item name="tab_3">@color/tab3</item>
+    </array>
+</resources>

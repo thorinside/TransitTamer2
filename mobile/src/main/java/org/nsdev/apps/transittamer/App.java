@@ -23,6 +23,7 @@ import java.sql.SQLException;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmList;
+import timber.log.Timber;
 
 /**
  * Main application subclass.
@@ -58,6 +59,10 @@ public class App extends Application {
             migrateLegacyData(realm);
         }
         realm.close();
+
+        if (BuildConfig.DEBUG) {
+            Timber.plant(new Timber.DebugTree());
+        }
     }
 
     private void migrateLegacyData(Realm realm) {

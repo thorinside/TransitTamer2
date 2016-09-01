@@ -2,6 +2,8 @@ package org.nsdev.apps.transittamer.model;
 
 import org.nsdev.apps.transittamer.net.model.Stop;
 
+import java.util.Date;
+
 import io.realm.RealmList;
 import io.realm.RealmObject;
 import io.realm.annotations.PrimaryKey;
@@ -14,6 +16,7 @@ public class FavouriteStops extends RealmObject {
     @PrimaryKey
     private int id = 0;
     private RealmList<Stop> stops;
+    private Date lastUpdated;
 
     public FavouriteStops() {
     }
@@ -32,5 +35,13 @@ public class FavouriteStops extends RealmObject {
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public Date getLastUpdated() {
+        return lastUpdated;
+    }
+
+    public void setLastUpdated(Date lastUpdated) {
+        this.lastUpdated = lastUpdated;
     }
 }
