@@ -67,6 +67,8 @@ public class MainActivity extends RxAppCompatActivity
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(R.style.AppTheme_NoActionBar);
+
         super.onCreate(savedInstanceState);
 
         ((App) getApplication()).getUserComponent().inject(this);
