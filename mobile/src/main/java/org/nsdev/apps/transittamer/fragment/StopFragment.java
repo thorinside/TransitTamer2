@@ -5,6 +5,8 @@ import android.databinding.DataBindingUtil;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.Nullable;
+import android.support.design.widget.Snackbar;
+import android.support.transition.TransitionManager;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -48,9 +50,14 @@ import timber.log.Timber;
  * create an instance of this fragment.
  */
 public class StopFragment extends RxFragment {
+    public static final int DELAY_MILLIS = 1000;
     private FragmentStopBinding mBinding;
     private BindingAdapter<ItemStopBinding> mAdapter;
     private List<Stop> mStops;
+
+    public interface CoordinatorProvider {
+        View getCoordinator();
+    }
 
     @Inject
     DataManager mDataManager;
@@ -106,15 +113,8 @@ public class StopFragment extends RxFragment {
         mHandler = new Handler();
         mChangeHandler = () -> {
             mAdapter.notifyItemRangeChanged(0, mStops.size());
+            checkEmpty();
         };
-
-        // Update the display only if there is a realm
-        // change and quiet for at least two seconds afterward
-        // to avoid many repaints
-//        mRealm.addChangeListener((v) -> {
-//            mHandler.removeCallbacks(mChangeHandler);
-//            mHandler.postDelayed(mChangeHandler, 2000);
-//        });
 
         return mBinding.getRoot();
     }
@@ -165,6 +165,18 @@ public class StopFragment extends RxFragment {
                     favouriteStops.getStops().remove(stop);
                     favouriteStops.setLastUpdated(new Date());
                     mAdapter.notifyItemRemoved(position);
+
+                    if (getActivity() instanceof CoordinatorProvider) {
+
+                        Snackbar.make(((CoordinatorProvider) getActivity()).getCoordinator(), "Removed stop #" + stop.getStop_id(), Snackbar.LENGTH_LONG).setAction(R.string.undo,
+                                view -> {
+                                    mRealm.executeTransaction(realm2 -> {
+                                        favouriteStops.getStops().add(stop);
+                                        favouriteStops.setLastUpdated(new Date());
+                                        mAdapter.notifyItemInserted(position);
+                                    });
+                                }).show();
+                    }
                 });
             }
         });
@@ -227,15 +239,28 @@ public class StopFragment extends RxFragment {
         mFavouriteStops = mRealm.where(FavouriteStops.class).findFirst();
         mStops = mFavouriteStops.getStops();
 
+        checkEmpty();
+
         for (Stop stop : mStops) {
             mDataManager.syncStop(stop);
         }
 
         mFavouriteStops.addChangeListener(element -> {
             mHandler.removeCallbacks(mChangeHandler);
-            mHandler.postDelayed(mChangeHandler, 2000);
+            mHandler.postDelayed(mChangeHandler, DELAY_MILLIS);
         });
 
         super.onViewStateRestored(savedInstanceState);
+    }
+
+    private void checkEmpty() {
+
+        TransitionManager.beginDelayedTransition((ViewGroup) mBinding.getRoot());
+
+        if (mFavouriteStops == null || mStops == null || mStops.size() == 0) {
+            mBinding.setEmpty(true);
+        } else {
+            mBinding.setEmpty(false);
+        }
     }
 }

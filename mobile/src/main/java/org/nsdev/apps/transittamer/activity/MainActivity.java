@@ -15,6 +15,7 @@ import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.aurelhubert.ahbottomnavigation.AHBottomNavigation;
@@ -47,7 +48,7 @@ import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
 public class MainActivity extends RxAppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+        implements NavigationView.OnNavigationItemSelectedListener, StopFragment.CoordinatorProvider {
 
     private static final String TAG = "MainActivity";
     @Inject
@@ -129,6 +130,7 @@ public class MainActivity extends RxAppCompatActivity
         AHBottomNavigationAdapter navigationAdapter = new AHBottomNavigationAdapter(this, R.menu.navigation);
         navigationAdapter.setupWithBottomNavigation(bottomNavigation, tabColors);
         bottomNavigation.setColored(true);
+        bottomNavigation.setBehaviorTranslationEnabled(false);
 
         bottomNavigation.setOnTabSelectedListener((position, wasSelected) -> {
             mViewPager.setCurrentItem(position, false);
@@ -211,6 +213,11 @@ public class MainActivity extends RxAppCompatActivity
         adapter.addFragment(MapFragment.newInstance(null, null), "Map");
         viewPager.setAdapter(adapter);
         viewPager.setOffscreenPageLimit(3);
+    }
+
+    @Override
+    public View getCoordinator() {
+        return mBinding.appBar.frameLayout;
     }
 
     class ViewPagerAdapter extends FragmentPagerAdapter {

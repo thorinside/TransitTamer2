@@ -1,8 +1,12 @@
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
+        <variable
+            name="empty"
+            type="boolean"/>
     </data>
 
     <FrameLayout
@@ -15,7 +19,19 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scrollbars="vertical"
+            app:isGone="@{empty}"
             tools:listitem="@layout/item_stop"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:alpha="0.7"
+            android:layout_margin="16dp"
+            android:gravity="center"
+            android:text="@string/empty_stops"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline"
+            app:isGone="@{!empty}"/>
 
     </FrameLayout>
 </layout>
