@@ -181,13 +181,13 @@ public class StopFragment extends RxFragment {
 
                     if (getActivity() instanceof CoordinatorProvider) {
 
-                        Snackbar.make(((CoordinatorProvider) getActivity()).getCoordinator(), "Removed stop #" + stop.getStop_id(), Snackbar.LENGTH_LONG).setAction(R.string.undo,
-                                view -> {
+                        Snackbar.make(((CoordinatorProvider) getActivity()).getCoordinator(), "Removed stop #" + stop.getStop_id(), Snackbar.LENGTH_LONG)
+                                .setAction(R.string.undo, view -> {
                                     mRealm.executeTransaction(realm2 -> {
-                                        favouriteStops.getStops().add(stop);
+                                        favouriteStops.getStops().add(position, stop);
                                         favouriteStops.setLastUpdated(new Date());
-                                        mAdapter.notifyItemInserted(position);
                                     });
+                                    mAdapter.notifyItemInserted(position);
                                 }).show();
                     }
                 });
