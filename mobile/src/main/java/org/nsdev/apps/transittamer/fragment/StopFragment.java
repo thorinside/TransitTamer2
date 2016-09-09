@@ -10,6 +10,7 @@ import android.support.transition.TransitionManager;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SimpleItemAnimator;
 import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -112,7 +113,6 @@ public class StopFragment extends RxFragment {
 
         mHandler = new Handler();
         mChangeHandler = () -> {
-            mAdapter.notifyItemRangeChanged(0, mStops.size());
             checkEmpty();
         };
 
@@ -122,6 +122,11 @@ public class StopFragment extends RxFragment {
     private void setupRecyclerView() {
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         mBinding.recyclerView.setLayoutManager(layout);
+
+        RecyclerView.ItemAnimator animator = mBinding.recyclerView.getItemAnimator();
+        if (animator instanceof SimpleItemAnimator) {
+            ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
+        }
 
         mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
             @Override
@@ -134,6 +139,13 @@ public class StopFragment extends RxFragment {
                 Stop stop = mStops.get(position);
                 binding.setStop(stop);
 
+                stop.removeChangeListeners();
+                stop.addChangeListener(element -> {
+                    Timber.d("Stop element changed: %s", element);
+                    binding.setRoutes(stop.getStopRoutes());
+                    binding.setNext(stop.getNextBus());
+                });
+
                 binding.map.onCreate(null);
                 binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
 
@@ -144,6 +156,7 @@ public class StopFragment extends RxFragment {
             @Override
             protected void recycleBinding(ItemStopBinding binding) {
                 Log.e("StopFragment", "Binding Recycling");
+                binding.getStop().removeChangeListeners();
             }
         };
 
