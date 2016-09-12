@@ -1,35 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     >
 
     <data>
 
     </data>
 
-    <android.support.v4.widget.DrawerLayout
-        android:id="@+id/drawer_layout"
+    <android.support.design.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fitsSystemWindows="true"
-        tools:openDrawer="start">
+        >
 
-        <include
-            android:id="@+id/app_bar"
-            layout="@layout/app_bar_main"
+        <android.support.design.widget.AppBarLayout
+            android:id="@+id/appBar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
-        <!--
-                <android.support.design.widget.NavigationView
-                    android:id="@+id/nav_view"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="start"
-                    android:fitsSystemWindows="true"
-                    app:headerLayout="@layout/nav_header_main"
-                    app:menu="@menu/activity_main_drawer"/>
-                    -->
+            android:layout_height="wrap_content"
+            android:theme="@style/AppTheme.AppBarOverlay">
 
-    </android.support.v4.widget.DrawerLayout>
+            <android.support.v7.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="?attr/colorPrimary"
+                android:minHeight="?attr/actionBarSize"
+                app:layout_scrollFlags="enterAlways"
+                app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+                app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"/>
+
+        </android.support.design.widget.AppBarLayout>
+
+        <android.support.design.widget.CoordinatorLayout
+            android:id="@+id/coordinator"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginBottom="60dp">
+
+            <org.nsdev.apps.transittamer.ui.NonSwipeableViewPager
+                android:id="@+id/viewpager"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="?attr/actionBarSize"
+                />
+
+
+            <android.support.design.widget.FloatingActionButton
+                android:id="@+id/fab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/fab_margin"
+                android:src="@drawable/ic_add_location_white_24dp"
+                app:borderWidth="0dp"
+                app:elevation="6dp"
+                app:fabSize="normal"
+                app:layout_anchor="@+id/viewpager"
+                app:layout_anchorGravity="bottom|end"
+                app:layout_dodgeInsetEdges="all"
+                app:pressedTranslationZ="4dp"
+                app:rippleColor="@android:color/white"/>
+
+        </android.support.design.widget.CoordinatorLayout>
+
+        <com.roughike.bottombar.BottomBar
+            android:id="@+id/bottom_navigation"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_gravity="bottom"
+            app:bb_activeTabAlpha="1.0"
+            app:bb_activeTabColor="#ffffff"
+            app:bb_inActiveTabAlpha="0.5"
+            app:bb_inActiveTabColor="#ffffff"
+            app:bb_showShadow="false"
+            app:bb_tabXmlResource="@xml/navigation"
+            />
+
+    </android.support.design.widget.CoordinatorLayout>
 </layout>

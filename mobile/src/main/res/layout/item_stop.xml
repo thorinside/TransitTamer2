@@ -31,14 +31,13 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:animateLayoutChanges="true"
             android:foreground="?attr/selectableItemBackground"
             android:clickable="true"
-            android:focusableInTouchMode="false"
             card_view:cardBackgroundColor="@android:color/white"
-            card_view:cardCornerRadius="4dp"
-            card_view:cardElevation="4dp"
-            card_view:cardUseCompatPadding="true">
+            card_view:cardElevation="2dp"
+            card_view:cardUseCompatPadding="true"
+            card_view:cardPreventCornerOverlap="false"
+            >
 
             <LinearLayout
                 android:layout_width="match_parent"

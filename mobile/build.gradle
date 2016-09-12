@@ -19,7 +19,7 @@ android {
         applicationId "org.nsdev.apps.transittamer"
         minSdkVersion 14
         targetSdkVersion 24
-        versionCode 18
+        versionCode 19
         versionName "2.0.0"
     }
     buildTypes {
@@ -72,7 +72,7 @@ dependencies {
 
     // UI
     compile 'com.afollestad.material-dialogs:core:0.9.0.1'
-    compile 'com.aurelhubert:ahbottomnavigation:1.3.3'
+    compile 'com.roughike:bottom-bar:2.0.2'
 
     // Logging
     compile 'com.jakewharton.timber:timber:4.3.0'

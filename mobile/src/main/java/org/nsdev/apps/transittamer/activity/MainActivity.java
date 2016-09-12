@@ -7,9 +7,7 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.view.GravityCompat;
 import android.support.v4.view.ViewPager;
-import android.support.v4.widget.DrawerLayout;
 import android.support.v7.widget.Toolbar;
 import android.text.InputType;
 import android.util.Log;
@@ -18,8 +16,7 @@ import android.view.MenuItem;
 import android.view.View;
 
 import com.afollestad.materialdialogs.MaterialDialog;
-import com.aurelhubert.ahbottomnavigation.AHBottomNavigation;
-import com.aurelhubert.ahbottomnavigation.AHBottomNavigationAdapter;
+import com.roughike.bottombar.BottomBar;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
 import org.nsdev.apps.transittamer.App;
@@ -75,10 +72,10 @@ public class MainActivity extends RxAppCompatActivity
         ((App) getApplication()).getUserComponent().inject(this);
 
         mBinding = DataBindingUtil.setContentView(this, R.layout.activity_main);
-        Toolbar toolbar = mBinding.appBar.toolbar;
+        Toolbar toolbar = mBinding.toolbar;
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = mBinding.appBar.fab;
+        FloatingActionButton fab = mBinding.fab;
         fab.setOnClickListener(view -> {
 
             new MaterialDialog.Builder(this)
@@ -119,28 +116,47 @@ public class MainActivity extends RxAppCompatActivity
 
         });
 
-        mViewPager = mBinding.appBar.content.viewpager;
+        mViewPager = mBinding.viewpager;
         setupViewPager(mViewPager);
         setupBottomNavigation();
     }
 
     private void setupBottomNavigation() {
+
+        BottomBar bottomNavigation = mBinding.bottomNavigation;
+
+        bottomNavigation.setOnTabSelectListener(tabId -> {
+            switch (tabId) {
+                case R.id.tab_stops:
+                    mBinding.fab.show();
+                    mBinding.viewpager.setCurrentItem(0, true);
+                    break;
+                case R.id.tab_route:
+                    mBinding.fab.hide();
+                    mBinding.viewpager.setCurrentItem(1, true);
+                    break;
+                case R.id.tab_map:
+                    mBinding.fab.hide();
+                    mBinding.viewpager.setCurrentItem(2, true);
+                    break;
+            }
+        });
+
         int[] tabColors = getApplicationContext().getResources().getIntArray(R.array.tab_colors);
-        AHBottomNavigation bottomNavigation = mBinding.appBar.bottomNavigation;
-        AHBottomNavigationAdapter navigationAdapter = new AHBottomNavigationAdapter(this, R.menu.navigation);
-        navigationAdapter.setupWithBottomNavigation(bottomNavigation, tabColors);
-        bottomNavigation.setColored(true);
-        bottomNavigation.setBehaviorTranslationEnabled(false);
+
+        /*
+        BottomBar bottomBar = mBinding.bottomNavigation;
 
         bottomNavigation.setOnTabSelectedListener((position, wasSelected) -> {
             mViewPager.setCurrentItem(position, false);
             if (position != 0) {
-                mBinding.appBar.fab.hide();
+                mBinding.fab.hide();
             } else {
-                mBinding.appBar.fab.show();
+                mBinding.fab.show();
             }
             return true;
         });
+        */
     }
 
     @Override
@@ -151,12 +167,7 @@ public class MainActivity extends RxAppCompatActivity
 
     @Override
     public void onBackPressed() {
-        DrawerLayout drawer = mBinding.drawerLayout;
-        if (drawer.isDrawerOpen(GravityCompat.START)) {
-            drawer.closeDrawer(GravityCompat.START);
-        } else {
-            super.onBackPressed();
-        }
+        super.onBackPressed();
     }
 
     @Override
@@ -201,8 +212,6 @@ public class MainActivity extends RxAppCompatActivity
 
         }
 
-        DrawerLayout drawer = mBinding.drawerLayout;
-        drawer.closeDrawer(GravityCompat.START);
         return true;
     }
 
@@ -217,7 +226,7 @@ public class MainActivity extends RxAppCompatActivity
 
     @Override
     public View getCoordinator() {
-        return mBinding.appBar.frameLayout;
+        return mBinding.coordinator;
     }
 
     class ViewPagerAdapter extends FragmentPagerAdapter {

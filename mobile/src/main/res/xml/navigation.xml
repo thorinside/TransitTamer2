@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<tabs>
+    <tab
+        barColorWhenSelected="@color/tab1"
+        icon="@drawable/ic_stops_black_24dp"
+        id="@+id/tab_stops"
+        title="@string/tab_stops"/>
+
+    <tab
+        barColorWhenSelected="@color/tab2"
+        icon="@drawable/ic_routes_black_24dp"
+        id="@+id/tab_route"
+        title="@string/tab_routes"/>
+
+    <tab
+        barColorWhenSelected="@color/tab3"
+        icon="@drawable/ic_maps_black_24dp"
+        id="@+id/tab_map"
+        title="@string/tab_map"/>
+</tabs>

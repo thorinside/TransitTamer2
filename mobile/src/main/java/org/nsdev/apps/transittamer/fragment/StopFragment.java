@@ -123,10 +123,12 @@ public class StopFragment extends RxFragment {
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         mBinding.recyclerView.setLayoutManager(layout);
 
+        /*
         RecyclerView.ItemAnimator animator = mBinding.recyclerView.getItemAnimator();
         if (animator instanceof SimpleItemAnimator) {
             ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
         }
+        */
 
         mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
             @Override
