@@ -11,9 +11,10 @@ import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 
 import dagger.Module;
 import dagger.Provides;
-import retrofit2.Retrofit;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
+import pl.charmas.android.reactivelocation.ReactiveLocationProvider;
+import retrofit2.Retrofit;
 
 /**
  * Created by neal on 2015-11-30.
@@ -37,6 +38,12 @@ public class UserModule {
     @Provides
     DataManager getDataManager(App context, TransitTamerAPI api, Bus bus, RealmConfiguration config) {
         return new DataManager(context, api, bus, config);
+    }
+
+    @UserScope
+    @Provides
+    ReactiveLocationProvider getLocationProvider(App context) {
+        return new ReactiveLocationProvider(context);
     }
 
     @UserScope

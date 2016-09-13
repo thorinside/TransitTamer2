@@ -1,22 +1,28 @@
 package org.nsdev.apps.transittamer.fragment;
 
 
+import android.Manifest;
 import android.databinding.DataBindingUtil;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.transition.TransitionManager;
 import android.support.v4.app.Fragment;
+import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.SimpleItemAnimator;
 import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.BitmapDescriptor;
@@ -24,6 +30,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.squareup.otto.Bus;
+import com.tbruyelle.rxpermissions.RxPermissions;
 import com.trello.rxlifecycle.components.support.RxFragment;
 
 import org.nsdev.apps.transittamer.App;
@@ -36,13 +43,19 @@ import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
 import io.realm.Realm;
 import io.realm.RealmList;
+import pl.charmas.android.reactivelocation.ReactiveLocationProvider;
+import rx.Observable;
+import rx.android.schedulers.AndroidSchedulers;
 import timber.log.Timber;
 
 /**
@@ -52,6 +65,9 @@ import timber.log.Timber;
  */
 public class StopFragment extends RxFragment {
     public static final int DELAY_MILLIS = 1000;
+    private static final float SUFFICIENT_ACCURACY = 50.0f;
+    private static final long LOCATION_TIMEOUT_IN_SECONDS = 30;
+    private static final long LOCATION_UPDATE_INTERVAL = 5000;
     private FragmentStopBinding mBinding;
     private BindingAdapter<ItemStopBinding> mAdapter;
     private List<Stop> mStops;
@@ -68,6 +84,10 @@ public class StopFragment extends RxFragment {
 
     @Inject
     Realm mRealm;
+
+    @Inject
+    ReactiveLocationProvider mLocationProvider;
+
     private OneMinuteTimer mTimer;
     private Handler mHandler;
     private Runnable mChangeHandler;
@@ -95,6 +115,7 @@ public class StopFragment extends RxFragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ((App) getContext().getApplicationContext()).getUserComponent().inject(this);
+        setHasOptionsMenu(true);
     }
 
     @Override
@@ -122,13 +143,6 @@ public class StopFragment extends RxFragment {
     private void setupRecyclerView() {
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         mBinding.recyclerView.setLayoutManager(layout);
-
-        /*
-        RecyclerView.ItemAnimator animator = mBinding.recyclerView.getItemAnimator();
-        if (animator instanceof SimpleItemAnimator) {
-            ((SimpleItemAnimator) animator).setSupportsChangeAnimations(false);
-        }
-        */
 
         mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
             @Override
@@ -276,6 +290,120 @@ public class StopFragment extends RxFragment {
             mBinding.setEmpty(true);
         } else {
             mBinding.setEmpty(false);
+        }
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.stop, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.menu_stop_sort_near:
+                sortStopsByNearest();
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void sortStopsByNearest() {
+
+        RxPermissions.getInstance(getContext())
+                .request(Manifest.permission.ACCESS_FINE_LOCATION)
+                .subscribe(granted -> {
+                    if (granted) {
+                        getNearestLocation();
+                    }
+                });
+    }
+
+    private void getNearestLocation() {
+        LocationRequest req = LocationRequest.create()
+                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                .setExpirationDuration(TimeUnit.SECONDS.toMillis(LOCATION_TIMEOUT_IN_SECONDS))
+                .setInterval(LOCATION_UPDATE_INTERVAL);
+
+        Observable<Location> goodEnoughQuicklyOrNothingObservable = mLocationProvider.getUpdatedLocation(req)
+                .filter(location -> location.getAccuracy() < SUFFICIENT_ACCURACY)
+                .timeout(LOCATION_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS, Observable.just(null), AndroidSchedulers.mainThread())
+                .first()
+                .observeOn(AndroidSchedulers.mainThread());
+
+        goodEnoughQuicklyOrNothingObservable.subscribe(
+                location -> {
+                    sortStopsByLocation(location);
+                },
+                error -> {
+                    Timber.e(error, "Error getting location.");
+                }
+        );
+    }
+
+    private void sortStopsByLocation(Location location) {
+        if (location == null) {
+            Timber.d("No location found.");
+            return;
+        }
+        Timber.d("Sorting Stops By Location: %s", location);
+
+        ArrayList<Stop> sortedStops = new ArrayList<Stop>();
+        sortedStops.addAll(mStops);
+
+        Collections.sort(sortedStops, (loc1, loc2) -> {
+            float[] results = new float[2];
+            Location.distanceBetween(loc1.getStop_lat(), loc1.getStop_lon(), location.getLatitude(), location.getLongitude(), results);
+
+            float[] results2 = new float[2];
+            Location.distanceBetween(loc2.getStop_lat(), loc2.getStop_lon(), location.getLatitude(), location.getLongitude(), results2);
+
+            if (results[0] > results2[0]) {
+                return 1;
+            }
+            if (results[0] < results2[0]) {
+                return -1;
+            }
+            return 0;
+        });
+
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new MyDiffCallback(sortedStops, mStops), true);
+        diffResult.dispatchUpdatesTo(mAdapter);
+        mStops = sortedStops;
+
+        mBinding.recyclerView.scrollToPosition(0);
+    }
+
+    public class MyDiffCallback extends DiffUtil.Callback {
+
+        List<Stop> old;
+        List<Stop> newer;
+
+        public MyDiffCallback(List<Stop> newStops, List<Stop> oldStops) {
+            old = oldStops;
+            newer = newStops;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return old.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newer.size();
+        }
+
+        @Override
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+            return old.get(oldItemPosition).getStop_id().equals(newer.get(newItemPosition).getStop_id());
+        }
+
+        @Override
+        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+            return old.get(oldItemPosition).equals(newer.get(newItemPosition));
         }
     }
 }

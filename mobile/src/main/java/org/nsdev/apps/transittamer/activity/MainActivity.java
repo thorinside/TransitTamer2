@@ -11,7 +11,6 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.widget.Toolbar;
 import android.text.InputType;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
@@ -47,7 +46,6 @@ import rx.schedulers.Schedulers;
 public class MainActivity extends RxAppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, StopFragment.CoordinatorProvider {
 
-    private static final String TAG = "MainActivity";
     @Inject
     ProfileManager mProfileManager;
 
@@ -141,22 +139,6 @@ public class MainActivity extends RxAppCompatActivity
                     break;
             }
         });
-
-        int[] tabColors = getApplicationContext().getResources().getIntArray(R.array.tab_colors);
-
-        /*
-        BottomBar bottomBar = mBinding.bottomNavigation;
-
-        bottomNavigation.setOnTabSelectedListener((position, wasSelected) -> {
-            mViewPager.setCurrentItem(position, false);
-            if (position != 0) {
-                mBinding.fab.hide();
-            } else {
-                mBinding.fab.show();
-            }
-            return true;
-        });
-        */
     }
 
     @Override
@@ -168,28 +150,6 @@ public class MainActivity extends RxAppCompatActivity
     @Override
     public void onBackPressed() {
         super.onBackPressed();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 
     @SuppressWarnings("StatementWithEmptyBody")
