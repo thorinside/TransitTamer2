@@ -24,6 +24,7 @@ import io.realm.RealmConfiguration;
 import io.realm.RealmList;
 import rx.Observable;
 import rx.schedulers.Schedulers;
+import timber.log.Timber;
 
 /**
  * Provides an abstraction of the network data APIs.
@@ -119,9 +120,9 @@ public class DataManager {
                                     stopRouteSchedule.setStop(stop);
                                     RealmList<StopTime> schedule = stopRouteSchedule.getSchedule();
                                     for (StopTime stopTime : next) {
-                                        schedule.add(realm.copyToRealm(stopTime));
+                                        schedule.add(realm1.copyToRealm(stopTime));
                                     }
-                                    stopRouteSchedule = realm.copyToRealm(stopRouteSchedule);
+                                    stopRouteSchedule = realm1.copyToRealm(stopRouteSchedule);
                                     stop.getSchedules().add(stopRouteSchedule);
 
                                     stop.setStopRoutes(getStopRoutes(stop));
@@ -132,9 +133,25 @@ public class DataManager {
                                 Log.e("DataManager", "Error syncStopSchedule", error);
                             },
                             () -> {
-                                realm.close();
                             }
                     );
+
+            // Also update the trips for the route
+            mApi.getTrips(route.getRoute_id())
+                    .observeOn(Schedulers.trampoline())
+                    .subscribeOn(Schedulers.trampoline())
+                    .subscribe(
+                            next -> {
+                                realm.executeTransaction(realm1 -> {
+                                    realm1.copyToRealmOrUpdate(next);
+                                });
+                            },
+                            error -> {
+                                Timber.e(error, "Error trips");
+                            },
+                            () -> {
+                                realm.close();
+                            });
         }
     }
 

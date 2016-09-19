@@ -34,14 +34,23 @@ import com.tbruyelle.rxpermissions.RxPermissions;
 import com.trello.rxlifecycle.components.support.RxFragment;
 
 import org.nsdev.apps.transittamer.App;
+import org.nsdev.apps.transittamer.BR;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.FragmentStopBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopBinding;
+import org.nsdev.apps.transittamer.databinding.ItemStopDetailBinding;
+import org.nsdev.apps.transittamer.databinding.ItemStopTimesBinding;
 import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
+import org.nsdev.apps.transittamer.model.StopRouteSchedule;
+import org.nsdev.apps.transittamer.model.StopViewModel;
+import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
+import org.nsdev.apps.transittamer.net.model.StopTime;
+import org.nsdev.apps.transittamer.net.model.Trip;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
+import org.nsdev.apps.transittamer.utils.ScheduleUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -153,26 +162,74 @@ public class StopFragment extends RxFragment {
             @Override
             protected void updateBinding(ItemStopBinding binding, int position) {
                 Stop stop = mStops.get(position);
-                binding.setStop(stop);
+                binding.setViewModel(new StopViewModel(stop, view -> {
+                    binding.getViewModel().setOpen(!binding.getViewModel().isOpen());
+                    stopClicked(mStops.get(position));
+                }));
 
                 stop.removeChangeListeners();
                 stop.addChangeListener(element -> {
                     Timber.d("Stop element changed: %s", element);
-                    binding.setRoutes(stop.getStopRoutes());
-                    binding.setNext(stop.getNextBus());
+                    StopViewModel viewModel = binding.getViewModel();
+                    viewModel.notifyPropertyChanged(BR.routes);
+                    viewModel.notifyPropertyChanged(BR.next);
                 });
 
                 binding.map.onCreate(null);
                 binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
 
-                binding.setRoutes(stop.getStopRoutes());
-                binding.setNext(stop.getNextBus());
+                RecyclerView routeDetailList = binding.routeDetailList;
+                routeDetailList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
+                routeDetailList.setAdapter(new BindingAdapter<ItemStopDetailBinding>(R.layout.item_stop_detail) {
+
+                    @Override
+                    public int getItemCount() {
+                        return stop.getSchedules().size();
+                    }
+
+                    @Override
+                    protected void updateBinding(ItemStopDetailBinding detailBinding, int position) {
+                        StopRouteSchedule stopRouteSchedule = stop.getSchedules().get(position);
+
+                        Route route = stopRouteSchedule.getRoute();
+                        detailBinding.setRoute(String.format("%s %s", route.getRoute_short_name(), route.getRoute_long_name()));
+
+                        RecyclerView stopTimesList = detailBinding.stopTimesList;
+                        stopTimesList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
+                        stopTimesList.setAdapter(new BindingAdapter<ItemStopTimesBinding>(R.layout.item_stop_times) {
+                            @Override
+                            public int getItemCount() {
+                                return stopRouteSchedule.getSchedule().size();
+                            }
+
+                            @Override
+                            protected void updateBinding(ItemStopTimesBinding timesBinding, int position) {
+                                StopTime stopTime = stopRouteSchedule.getSchedule().get(position);
+                                String time = stopTime.getDeparture_time().substring(0, stopTime.getDeparture_time().length() - 3);
+                                timesBinding.setTime(time);
+                            }
+
+                            @Override
+                            protected void recycleBinding(ItemStopTimesBinding binding) {
+
+                            }
+
+                        });
+
+                        stopTimesList.scrollToPosition(ScheduleUtils.getIndexOfNext(stopRouteSchedule));
+                    }
+
+                    @Override
+                    protected void recycleBinding(ItemStopDetailBinding binding) {
+
+                    }
+                });
             }
 
             @Override
             protected void recycleBinding(ItemStopBinding binding) {
                 Log.e("StopFragment", "Binding Recycling");
-                binding.getStop().removeChangeListeners();
+                binding.getViewModel().getStop().removeChangeListeners();
             }
         };
 
@@ -210,7 +267,22 @@ public class StopFragment extends RxFragment {
             }
         });
 
-        itemTouchHelper.attachToRecyclerView(mBinding.recyclerView);
+        //itemTouchHelper.attachToRecyclerView(mBinding.recyclerView);
+    }
+
+    private void stopClicked(Stop stop) {
+        Timber.d("Stop clicked: %s", stop.getStop_id());
+
+        for (StopRouteSchedule stopRouteSchedule : stop.getSchedules()) {
+            Timber.d("Route: %s %s", stopRouteSchedule.getRoute().getRoute_short_name(), stopRouteSchedule.getRoute().getRoute_long_name());
+            for (StopTime stopTime : stopRouteSchedule.getSchedule()) {
+                String tripId = stopTime.getTrip_id();
+                Trip trip = mRealm.where(Trip.class)
+                        .equalTo("trip_id", tripId)
+                        .findFirst();
+                Timber.d(" StopTime: %s %s", stopTime.getDeparture_time(), trip.getTrip_headsign());
+            }
+        }
     }
 
     private void updateNextBus() {
