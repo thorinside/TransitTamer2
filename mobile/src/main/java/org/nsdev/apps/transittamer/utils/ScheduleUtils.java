@@ -1,5 +1,9 @@
 package org.nsdev.apps.transittamer.utils;
 
+import android.content.Context;
+import android.text.format.DateUtils;
+import android.util.Log;
+
 import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.net.model.StopTime;
 
@@ -29,7 +33,7 @@ public class ScheduleUtils {
                 Date time = timeFormat.parse(String.format("%s %s", dateFormat.format(now), stopTime.getDeparture_time()));
 
                 if (time.after(now)) {
-                    Timber.d("Found %s > %s", time, now);
+                    Timber.d("Found %s > %s at index %d", time, now, index);
                     return index;
                 }
 
@@ -41,4 +45,31 @@ public class ScheduleUtils {
         }
         return 0;
     }
+
+    private static SimpleDateFormat dateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+    private static SimpleDateFormat dayFormat2 = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+
+    public static Date getDateForDepartureTime(Date now, StopTime stopTime) {
+        String timeStr = stopTime.getDeparture_time();
+        Date date = null;
+
+        String day = dayFormat2.format(now);
+
+        try {
+            date = dateFormat2.parse(day + " " + timeStr);
+            if (date.getTime() - now.getTime() > (1000 * 60 * 60 * 24)) {
+                date.setTime(date.getTime() - (1000 * 60 * 60 * 24));
+            }
+        } catch (ParseException ex) {
+            Log.e("DataManager", "Cannot parse departure time: " + timeStr);
+        }
+
+        return date;
+    }
+
+    public static String getTimeString(Context context, StopTime stopTime) {
+        final Date now = new Date();
+        return DateUtils.formatDateTime(context, ScheduleUtils.getDateForDepartureTime(now, stopTime).getTime(), DateUtils.FORMAT_SHOW_TIME);
+    }
+
 }

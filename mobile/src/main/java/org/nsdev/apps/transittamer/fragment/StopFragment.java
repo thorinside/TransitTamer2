@@ -6,13 +6,17 @@ import android.databinding.DataBindingUtil;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.transition.TransitionManager;
 import android.support.v4.app.Fragment;
 import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.LinearSnapHelper;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SnapHelper;
+import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.support.v7.widget.helper.ItemTouchHelper;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -49,6 +53,7 @@ import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
 import org.nsdev.apps.transittamer.net.model.Trip;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
+import org.nsdev.apps.transittamer.ui.StartLinearSnapHelper;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 import org.nsdev.apps.transittamer.utils.ScheduleUtils;
 
@@ -173,13 +178,20 @@ public class StopFragment extends RxFragment {
                     StopViewModel viewModel = binding.getViewModel();
                     viewModel.notifyPropertyChanged(BR.routes);
                     viewModel.notifyPropertyChanged(BR.next);
+                    RecyclerView.Adapter adapter = binding.routeDetailList.getAdapter();
+                    if (adapter != null) {
+                        adapter.notifyItemRangeChanged(0, adapter.getItemCount());
+                    }
                 });
 
                 binding.map.onCreate(null);
                 binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
 
                 RecyclerView routeDetailList = binding.routeDetailList;
-                routeDetailList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
+                if (routeDetailList.getLayoutManager() == null) {
+                    routeDetailList.setHasFixedSize(true);
+                    routeDetailList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
+                }
                 routeDetailList.setAdapter(new BindingAdapter<ItemStopDetailBinding>(R.layout.item_stop_detail) {
 
                     @Override
@@ -195,7 +207,13 @@ public class StopFragment extends RxFragment {
                         detailBinding.setRoute(String.format("%s %s", route.getRoute_short_name(), route.getRoute_long_name()));
 
                         RecyclerView stopTimesList = detailBinding.stopTimesList;
-                        stopTimesList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
+                        if (stopTimesList.getLayoutManager() == null) {
+                            final LinearLayoutManager linearLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
+                            stopTimesList.setHasFixedSize(true);
+                            SnapHelper helper = new StartLinearSnapHelper();
+                            helper.attachToRecyclerView(stopTimesList);
+                            stopTimesList.setLayoutManager(linearLayoutManager);
+                        }
                         stopTimesList.setAdapter(new BindingAdapter<ItemStopTimesBinding>(R.layout.item_stop_times) {
                             @Override
                             public int getItemCount() {
@@ -205,8 +223,9 @@ public class StopFragment extends RxFragment {
                             @Override
                             protected void updateBinding(ItemStopTimesBinding timesBinding, int position) {
                                 StopTime stopTime = stopRouteSchedule.getSchedule().get(position);
-                                String time = stopTime.getDeparture_time().substring(0, stopTime.getDeparture_time().length() - 3);
+                                String time = ScheduleUtils.getTimeString(getContext(), stopTime);
                                 timesBinding.setTime(time);
+                                timesBinding.setBold(ScheduleUtils.getIndexOfNext(stopRouteSchedule) == position);
                             }
 
                             @Override
@@ -216,7 +235,8 @@ public class StopFragment extends RxFragment {
 
                         });
 
-                        stopTimesList.scrollToPosition(ScheduleUtils.getIndexOfNext(stopRouteSchedule));
+                        int indexOfNext = ScheduleUtils.getIndexOfNext(stopRouteSchedule);
+                        ((LinearLayoutManager) stopTimesList.getLayoutManager()).scrollToPositionWithOffset(indexOfNext, 0);
                     }
 
                     @Override

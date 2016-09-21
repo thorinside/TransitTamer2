@@ -1,7 +1,6 @@
 package org.nsdev.apps.transittamer.managers;
 
 import android.content.Context;
-import android.text.format.DateUtils;
 import android.util.Log;
 
 import com.squareup.otto.Bus;
@@ -11,13 +10,11 @@ import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
+import org.nsdev.apps.transittamer.utils.ScheduleUtils;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Locale;
 
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
@@ -177,7 +174,7 @@ public class DataManager {
 
         for (StopRouteSchedule schedule : stop.getSchedules()) {
             for (StopTime stopTime : schedule.getSchedule()) {
-                Date departureDate = getDateForDepartureTime(state.now, stopTime);
+                Date departureDate = ScheduleUtils.getDateForDepartureTime(state.now, stopTime);
                 if (departureDate.after(state.now)) {
                     long diff = departureDate.getTime() - state.now.getTime();
                     if (diff < state.smallestDiff) {
@@ -201,28 +198,9 @@ public class DataManager {
 
         public String toString() {
             if (nearestRoute == null || nearestTime == null) return "No Service";
-            return String.format("#%s: %s", nearestRoute.getRoute_short_name(), DateUtils.formatDateTime(mContext, getDateForDepartureTime(now, nearestTime).getTime(), DateUtils.FORMAT_SHOW_TIME));
+            return String.format("#%s: %s", nearestRoute.getRoute_short_name(), ScheduleUtils.getTimeString(mContext, nearestTime));
         }
     }
 
-    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-    SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
-    private Date getDateForDepartureTime(Date now, StopTime stopTime) {
-        String timeStr = stopTime.getDeparture_time();
-        Date date = null;
-
-        String day = dayFormat.format(now);
-
-        try {
-            date = dateFormat.parse(day + " " + timeStr);
-            if (date.getTime() - now.getTime() > (1000 * 60 * 60 * 24)) {
-                date.setTime(date.getTime() - (1000 * 60 * 60 * 24));
-            }
-        } catch (ParseException ex) {
-            Log.e("DataManager", "Cannot parse departure time: " + timeStr);
-        }
-
-        return date;
-    }
 }
