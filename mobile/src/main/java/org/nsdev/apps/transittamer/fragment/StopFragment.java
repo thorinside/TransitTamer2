@@ -51,6 +51,7 @@ import org.nsdev.apps.transittamer.model.StopViewModel;
 import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
+import org.nsdev.apps.transittamer.model.StopDetailModel;
 import org.nsdev.apps.transittamer.net.model.Trip;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 import org.nsdev.apps.transittamer.ui.StartLinearSnapHelper;
@@ -169,7 +170,6 @@ public class StopFragment extends RxFragment {
                 Stop stop = mStops.get(position);
                 binding.setViewModel(new StopViewModel(stop, view -> {
                     binding.getViewModel().setOpen(!binding.getViewModel().isOpen());
-                    stopClicked(mStops.get(position));
                 }));
 
                 stop.removeChangeListeners();
@@ -192,19 +192,22 @@ public class StopFragment extends RxFragment {
                     routeDetailList.setHasFixedSize(true);
                     routeDetailList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
                 }
+
+                StopDetailModel stopDetailModel = new StopDetailModel(mRealm, stop);
+
                 routeDetailList.setAdapter(new BindingAdapter<ItemStopDetailBinding>(R.layout.item_stop_detail) {
 
                     @Override
                     public int getItemCount() {
-                        return stop.getSchedules().size();
+                        return stopDetailModel.getSchedules().size();
                     }
 
                     @Override
                     protected void updateBinding(ItemStopDetailBinding detailBinding, int position) {
-                        StopRouteSchedule stopRouteSchedule = stop.getSchedules().get(position);
+                        StopRouteSchedule stopRouteSchedule = stopDetailModel.getSchedules().get(position);
 
                         Route route = stopRouteSchedule.getRoute();
-                        detailBinding.setRoute(String.format("%s %s", route.getRoute_short_name(), route.getRoute_long_name()));
+                        detailBinding.setRoute(String.format("%s \u2014 %s", route.getRoute_short_name(), ScheduleUtils.getHeadSign(mRealm, stopRouteSchedule)));
 
                         RecyclerView stopTimesList = detailBinding.stopTimesList;
                         if (stopTimesList.getLayoutManager() == null) {
@@ -288,21 +291,6 @@ public class StopFragment extends RxFragment {
         });
 
         //itemTouchHelper.attachToRecyclerView(mBinding.recyclerView);
-    }
-
-    private void stopClicked(Stop stop) {
-        Timber.d("Stop clicked: %s", stop.getStop_id());
-
-        for (StopRouteSchedule stopRouteSchedule : stop.getSchedules()) {
-            Timber.d("Route: %s %s", stopRouteSchedule.getRoute().getRoute_short_name(), stopRouteSchedule.getRoute().getRoute_long_name());
-            for (StopTime stopTime : stopRouteSchedule.getSchedule()) {
-                String tripId = stopTime.getTrip_id();
-                Trip trip = mRealm.where(Trip.class)
-                        .equalTo("trip_id", tripId)
-                        .findFirst();
-                Timber.d(" StopTime: %s %s", stopTime.getDeparture_time(), trip.getTrip_headsign());
-            }
-        }
     }
 
     private void updateNextBus() {

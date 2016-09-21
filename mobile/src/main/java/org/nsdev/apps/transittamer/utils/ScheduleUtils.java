@@ -1,17 +1,22 @@
 package org.nsdev.apps.transittamer.utils;
 
 import android.content.Context;
+import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.Log;
 
 import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.net.model.StopTime;
+import org.nsdev.apps.transittamer.net.model.Trip;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
 
+import io.realm.Realm;
 import io.realm.RealmList;
 import timber.log.Timber;
 
@@ -43,7 +48,7 @@ public class ScheduleUtils {
                 e.printStackTrace();
             }
         }
-        return 0;
+        return -1;
     }
 
     private static SimpleDateFormat dateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
@@ -70,6 +75,24 @@ public class ScheduleUtils {
     public static String getTimeString(Context context, StopTime stopTime) {
         final Date now = new Date();
         return DateUtils.formatDateTime(context, ScheduleUtils.getDateForDepartureTime(now, stopTime).getTime(), DateUtils.FORMAT_SHOW_TIME);
+    }
+
+    public static String getHeadSign(Realm realm, StopRouteSchedule schedule) {
+        ArrayList<String> signs = new ArrayList<>();
+
+        for (StopTime stopTime : schedule.getSchedule()) {
+            String tripId = stopTime.getTrip_id();
+            Trip trip = realm.where(Trip.class)
+                    .equalTo("trip_id", tripId)
+                    .findFirst();
+            if (!signs.contains(trip.getTrip_headsign())) {
+                signs.add(trip.getTrip_headsign());
+            }
+
+        }
+        Collections.sort(signs, (first, second) -> first.compareTo(second));
+
+        return TextUtils.join(" / ", signs);
     }
 
 }
