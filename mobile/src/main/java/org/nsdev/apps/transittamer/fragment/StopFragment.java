@@ -6,14 +6,19 @@ import android.databinding.DataBindingUtil;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.transition.TransitionManager;
 import android.support.v4.app.Fragment;
 import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.LinearSnapHelper;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SnapHelper;
+import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.support.v7.widget.helper.ItemTouchHelper;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -22,6 +27,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -34,18 +40,33 @@ import com.tbruyelle.rxpermissions.RxPermissions;
 import com.trello.rxlifecycle.components.support.RxFragment;
 
 import org.nsdev.apps.transittamer.App;
+import org.nsdev.apps.transittamer.BR;
 import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.FragmentStopBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopBinding;
+import org.nsdev.apps.transittamer.databinding.ItemStopDetailBinding;
+import org.nsdev.apps.transittamer.databinding.ItemStopTimesBinding;
 import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
+import org.nsdev.apps.transittamer.model.StopRouteSchedule;
+import org.nsdev.apps.transittamer.model.StopViewModel;
+import org.nsdev.apps.transittamer.net.TransitTamerAPI;
+import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
+import org.nsdev.apps.transittamer.net.model.StopTime;
+import org.nsdev.apps.transittamer.model.StopDetailModel;
+import org.nsdev.apps.transittamer.net.model.Trip;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
+import org.nsdev.apps.transittamer.ui.ItemClickSupport;
+import org.nsdev.apps.transittamer.ui.StartLinearSnapHelper;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
+import org.nsdev.apps.transittamer.utils.ScheduleUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -56,6 +77,7 @@ import io.realm.RealmList;
 import pl.charmas.android.reactivelocation.ReactiveLocationProvider;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 import timber.log.Timber;
 
 /**
@@ -87,6 +109,11 @@ public class StopFragment extends RxFragment {
 
     @Inject
     ReactiveLocationProvider mLocationProvider;
+
+    @Inject
+    TransitTamerAPI mApi;
+
+    HashMap<Integer, StopViewModel> mViewModelForPosition = new HashMap<>();
 
     private OneMinuteTimer mTimer;
     private Handler mHandler;
@@ -152,31 +179,109 @@ public class StopFragment extends RxFragment {
 
             @Override
             protected void updateBinding(ItemStopBinding binding, int position) {
+
                 Stop stop = mStops.get(position);
-                binding.setStop(stop);
+                binding.setViewModel(new StopViewModel(stop));
+
+                mViewModelForPosition.put(position, binding.getViewModel());
 
                 stop.removeChangeListeners();
                 stop.addChangeListener(element -> {
                     Timber.d("Stop element changed: %s", element);
-                    binding.setRoutes(stop.getStopRoutes());
-                    binding.setNext(stop.getNextBus());
+                    StopViewModel viewModel = binding.getViewModel();
+                    viewModel.notifyPropertyChanged(BR.routes);
+                    viewModel.notifyPropertyChanged(BR.next);
+                    RecyclerView.Adapter adapter = binding.routeDetailList.getAdapter();
+                    if (adapter != null) {
+                        adapter.notifyItemRangeChanged(0, adapter.getItemCount());
+                    }
                 });
 
                 binding.map.onCreate(null);
                 binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
 
-                binding.setRoutes(stop.getStopRoutes());
-                binding.setNext(stop.getNextBus());
+                RecyclerView routeDetailList = binding.routeDetailList;
+                if (routeDetailList.getLayoutManager() == null) {
+                    routeDetailList.setHasFixedSize(true);
+                    routeDetailList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
+                }
+
+                StopDetailModel stopDetailModel = new StopDetailModel(mRealm, stop);
+
+                routeDetailList.setAdapter(new BindingAdapter<ItemStopDetailBinding>(R.layout.item_stop_detail) {
+
+                    @Override
+                    public int getItemCount() {
+                        return stopDetailModel.getSchedules().size();
+                    }
+
+                    @Override
+                    protected void updateBinding(ItemStopDetailBinding detailBinding, int position) {
+                        StopRouteSchedule stopRouteSchedule = stopDetailModel.getSchedules().get(position);
+
+                        Route route = stopRouteSchedule.getRoute();
+                        detailBinding.setRoute(String.format("%s \u2014 %s", route.getRoute_short_name(), ScheduleUtils.getHeadSign(mRealm, stopRouteSchedule)));
+
+                        RecyclerView stopTimesList = detailBinding.stopTimesList;
+                        if (stopTimesList.getLayoutManager() == null) {
+                            final LinearLayoutManager linearLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
+                            stopTimesList.setHasFixedSize(true);
+                            SnapHelper helper = new StartLinearSnapHelper();
+                            helper.attachToRecyclerView(stopTimesList);
+                            stopTimesList.setLayoutManager(linearLayoutManager);
+                        }
+                        stopTimesList.setAdapter(new BindingAdapter<ItemStopTimesBinding>(R.layout.item_stop_times) {
+                            @Override
+                            public int getItemCount() {
+                                return stopRouteSchedule.getSchedule().size();
+                            }
+
+                            @Override
+                            protected void updateBinding(ItemStopTimesBinding timesBinding, int position) {
+                                StopTime stopTime = stopRouteSchedule.getSchedule().get(position);
+                                String time = ScheduleUtils.getTimeString(getContext(), stopTime);
+                                timesBinding.setTime(time);
+                                timesBinding.setBold(ScheduleUtils.getIndexOfNext(stopRouteSchedule) == position);
+                            }
+
+                            @Override
+                            protected void recycleBinding(ItemStopTimesBinding binding) {
+
+                            }
+
+                        });
+
+                        int indexOfNext = ScheduleUtils.getIndexOfNext(stopRouteSchedule);
+                        if (indexOfNext > 0) {
+                            ((LinearLayoutManager) stopTimesList.getLayoutManager()).scrollToPositionWithOffset(indexOfNext, 0);
+                        }
+                    }
+
+                    @Override
+                    protected void recycleBinding(ItemStopDetailBinding binding) {
+
+                    }
+                });
             }
 
             @Override
             protected void recycleBinding(ItemStopBinding binding) {
                 Log.e("StopFragment", "Binding Recycling");
-                binding.getStop().removeChangeListeners();
+                binding.getViewModel().getStop().removeChangeListeners();
             }
         };
 
         mBinding.recyclerView.setAdapter(mAdapter);
+
+        ItemClickSupport.addTo(mBinding.recyclerView)
+                .setOnItemLongClickListener((recyclerView, position1, v) -> {
+                    deleteStopAtPosition(position1);
+                    return true;
+                })
+                .setOnItemClickListener((recyclerView, position, v) -> {
+                    StopViewModel stopViewModel = mViewModelForPosition.get(position);
+                    stopViewModel.setOpen(!stopViewModel.isOpen());
+                });
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
             @Override
@@ -188,29 +293,11 @@ public class StopFragment extends RxFragment {
             public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getAdapterPosition();
                 Timber.d("Swiped item %d", position);
-                FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
-                mRealm.executeTransaction(realm -> {
-                    Stop stop = favouriteStops.getStops().get(position);
-                    favouriteStops.getStops().remove(stop);
-                    favouriteStops.setLastUpdated(new Date());
-                    mAdapter.notifyItemRemoved(position);
-
-                    if (getActivity() instanceof CoordinatorProvider) {
-
-                        Snackbar.make(((CoordinatorProvider) getActivity()).getCoordinator(), "Removed stop #" + stop.getStop_id(), Snackbar.LENGTH_LONG)
-                                .setAction(R.string.undo, view -> {
-                                    mRealm.executeTransaction(realm2 -> {
-                                        favouriteStops.getStops().add(position, stop);
-                                        favouriteStops.setLastUpdated(new Date());
-                                    });
-                                    mAdapter.notifyItemInserted(position);
-                                }).show();
-                    }
-                });
+                deleteStopAtPosition(position);
             }
         });
 
-        itemTouchHelper.attachToRecyclerView(mBinding.recyclerView);
+        //itemTouchHelper.attachToRecyclerView(mBinding.recyclerView);
     }
 
     private void updateNextBus() {
@@ -305,6 +392,9 @@ public class StopFragment extends RxFragment {
             case R.id.menu_stop_sort_near:
                 sortStopsByNearest();
                 return true;
+            case R.id.menu_add_stop:
+                doAddStop();
+                break;
         }
 
         return super.onOptionsItemSelected(item);
@@ -406,4 +496,65 @@ public class StopFragment extends RxFragment {
             return old.get(oldItemPosition).equals(newer.get(newItemPosition));
         }
     }
+
+    private void doAddStop() {
+        new MaterialDialog.Builder(getContext())
+                .title(R.string.stops_add_stop)
+                .content(R.string.stops_add_stop_content)
+                .inputType(InputType.TYPE_CLASS_NUMBER)
+                .input(R.string.stops_input_hint, 0, (dialog, input) -> {
+                    RealmList<Stop> newStops = new RealmList<>();
+
+                    Observable.just(input.toString())
+                            .concatMap(s -> mApi.getStop(s))
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribeOn(Schedulers.io())
+                            .subscribe(
+                                    stop -> {
+                                        mRealm.executeTransaction(realm -> {
+                                            newStops.add(mRealm.copyToRealmOrUpdate(stop));
+                                        });
+                                    },
+                                    error -> {
+                                        Timber.e(error, "Adding stop");
+                                    },
+                                    () -> {
+                                        FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+                                        mRealm.executeTransaction(realm -> {
+                                            favouriteStops.getStops().addAll(newStops);
+                                            favouriteStops.setLastUpdated(new Date());
+                                        });
+
+                                        for (Stop newStop : newStops) {
+                                            mDataManager.syncStop(newStop);
+                                        }
+
+                                    }
+                            );
+                }).show();
+    }
+
+    private void deleteStopAtPosition(int position) {
+        FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+        mRealm.executeTransaction(realm -> {
+            Stop stop = favouriteStops.getStops().get(position);
+            favouriteStops.getStops().remove(stop);
+            favouriteStops.setLastUpdated(new Date());
+            mAdapter.notifyItemRemoved(position);
+
+            if (getActivity() instanceof CoordinatorProvider) {
+
+                Snackbar.make(((CoordinatorProvider) getActivity()).getCoordinator(), "Removed stop #" + stop.getStop_id(), Snackbar.LENGTH_LONG)
+                        .setAction(R.string.undo, view -> {
+                            mRealm.executeTransaction(realm2 -> {
+                                favouriteStops.getStops().add(position, stop);
+                                favouriteStops.setLastUpdated(new Date());
+                            });
+                            mAdapter.notifyItemInserted(position);
+                        }).show();
+            }
+        });
+    }
+
+
 }

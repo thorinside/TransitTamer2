@@ -1,24 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:binding="http://schemas.android.com/apk/res-auto"
         xmlns:card_view="http://schemas.android.com/apk/res-auto"
         xmlns:map="http://schemas.android.com/apk/res-auto"
         xmlns:tools="http://schemas.android.com/tools">
 
     <data>
 
-        <import type="org.nsdev.apps.transittamer.net.model.Stop"/>
-
         <variable
-            name="stop"
-            type="Stop"/>
+            name="viewModel"
+            type="org.nsdev.apps.transittamer.model.StopViewModel"/>
 
-        <variable
-            name="routes"
-            type="String"/>
-
-        <variable
-            name="next"
-            type="String"/>
     </data>
 
     <LinearLayout
@@ -32,68 +24,90 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:foreground="?attr/selectableItemBackground"
-            android:clickable="true"
             card_view:cardBackgroundColor="@android:color/white"
             card_view:cardElevation="2dp"
-            card_view:cardUseCompatPadding="true"
             card_view:cardPreventCornerOverlap="false"
+            card_view:cardUseCompatPadding="true"
             >
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="110dp"
-                android:layout_margin="4dp"
-                android:orientation="horizontal">
-
-                <com.google.android.gms.maps.MapView
-                    android:id="@+id/map"
-                    android:layout_width="110dp"
-                    android:layout_height="110dp"
-                    map:cameraZoom="17"
-                    map:liteMode="true"
-                    map:mapType="normal"
-                    tools:background="#aaa"
-                    />
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                >
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="110dp"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginLeft="16dp"
-                    android:orientation="vertical">
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:orientation="horizontal">
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@{stop.stop_code}"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Title"
-                        tools:text="6604"/>
+                    <com.google.android.gms.maps.MapView
+                        android:id="@+id/map"
+                        android:layout_width="110dp"
+                        android:layout_height="110dp"
+                        map:cameraZoom="17"
+                        map:liteMode="true"
+                        map:mapType="normal"
+                        tools:background="#aaa"
+                        />
 
-                    <TextView
+                    <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:ellipsize="end"
-                        android:lines="2"
-                        android:maxLines="2"
-                        android:text="@{stop.stop_name}"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Small"
-                        tools:text="SB Brisebois DR @ Northmount DR NW"/>
+                        android:layout_height="110dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginLeft="16dp"
+                        android:orientation="vertical">
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@{routes}"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Body2"
-                        tools:text="10, 32, 37"/>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@{viewModel.stop.stop_code}"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Title"
+                            tools:text="6604"/>
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@{next}"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Body1"
-                        tools:text="Next: #10, 8:17am"/>
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:lines="2"
+                            android:maxLines="2"
+                            android:text="@{viewModel.stop.stop_name}"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                            tools:text="SB Brisebois DR @ Northmount DR NW"/>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@{viewModel.routes}"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+                            tools:text="10, 32, 37"/>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@{viewModel.next}"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+                            tools:text="Next: #10, 8:17am"/>
+
+                    </LinearLayout>
 
                 </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    binding:isGone="@{!viewModel.open}"
+                    >
+
+                    <android.support.v7.widget.RecyclerView
+                        android:id="@+id/route_detail_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        tools:listitem="@layout/item_stop_detail"
+                        />
+
+                </FrameLayout>
 
             </LinearLayout>
 

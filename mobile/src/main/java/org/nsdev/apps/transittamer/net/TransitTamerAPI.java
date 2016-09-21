@@ -7,6 +7,7 @@ import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.ShapePath;
 import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
+import org.nsdev.apps.transittamer.net.model.Trip;
 
 import java.util.List;
 
@@ -64,4 +65,12 @@ public interface TransitTamerAPI {
 
     @GET("schedule/{tripId}")
     Observable<List<StopTime>> getTripSchedule(@Path("tripId") String tripId);
+
+    @GET("trip/{tripId}")
+    Observable<List<Trip>> getTrip(@Path("tripId") String tripId);
+
+    ;
+
+    @GET("trips/{routeId}")
+    Observable<List<Trip>> getTrips(@Path("routeId") String routeId);
 }

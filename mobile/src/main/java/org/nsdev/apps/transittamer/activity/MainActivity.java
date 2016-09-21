@@ -2,19 +2,16 @@ package org.nsdev.apps.transittamer.activity;
 
 import android.databinding.DataBindingUtil;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.widget.Toolbar;
-import android.text.InputType;
-import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
-import com.afollestad.materialdialogs.MaterialDialog;
 import com.roughike.bottombar.BottomBar;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
@@ -26,22 +23,14 @@ import org.nsdev.apps.transittamer.fragment.RouteFragment;
 import org.nsdev.apps.transittamer.fragment.StopFragment;
 import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
-import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
-import org.nsdev.apps.transittamer.net.model.Stop;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 import javax.inject.Inject;
 
 import io.realm.Realm;
-import io.realm.RealmList;
-import rx.Observable;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
 
 public class MainActivity extends RxAppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, StopFragment.CoordinatorProvider {
@@ -73,47 +62,6 @@ public class MainActivity extends RxAppCompatActivity
         Toolbar toolbar = mBinding.toolbar;
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = mBinding.fab;
-        fab.setOnClickListener(view -> {
-
-            new MaterialDialog.Builder(this)
-                    .title(R.string.stops_add_stop)
-                    .content(R.string.stops_add_stop_content)
-                    .inputType(InputType.TYPE_CLASS_NUMBER)
-                    .input(R.string.stops_input_hint, 0, (dialog, input) -> {
-                        RealmList<Stop> newStops = new RealmList<>();
-
-                        Observable.from(Arrays.asList(input.toString()))
-                                .concatMap(s -> mApi.getStop(s))
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .subscribeOn(Schedulers.io())
-                                .subscribe(
-                                        stop -> {
-                                            mRealm.executeTransaction(realm -> {
-                                                newStops.add(mRealm.copyToRealmOrUpdate(stop));
-                                            });
-                                        },
-                                        error -> {
-                                            Log.e("MainActivity", "Error", error);
-                                        },
-                                        () -> {
-                                            FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
-                                            mRealm.executeTransaction(realm -> {
-                                                favouriteStops.getStops().addAll(newStops);
-                                                favouriteStops.setLastUpdated(new Date());
-                                            });
-
-                                            for (Stop newStop : newStops) {
-                                                mDataManager.syncStop(newStop);
-                                            }
-
-                                        }
-                                );
-                    }).show();
-
-
-        });
-
         mViewPager = mBinding.viewpager;
         setupViewPager(mViewPager);
         setupBottomNavigation();
@@ -126,15 +74,12 @@ public class MainActivity extends RxAppCompatActivity
         bottomNavigation.setOnTabSelectListener(tabId -> {
             switch (tabId) {
                 case R.id.tab_stops:
-                    mBinding.fab.show();
                     mBinding.viewpager.setCurrentItem(0, true);
                     break;
                 case R.id.tab_route:
-                    mBinding.fab.hide();
                     mBinding.viewpager.setCurrentItem(1, true);
                     break;
                 case R.id.tab_map:
-                    mBinding.fab.hide();
                     mBinding.viewpager.setCurrentItem(2, true);
                     break;
             }
@@ -216,5 +161,16 @@ public class MainActivity extends RxAppCompatActivity
         public CharSequence getPageTitle(int position) {
             return mFragmentTitleList.get(position);
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        return super.onOptionsItemSelected(item);
     }
 }
