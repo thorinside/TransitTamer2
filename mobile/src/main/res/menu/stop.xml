@@ -6,5 +6,6 @@
         android:title="@string/sort_by_nearest"
         android:id="@+id/menu_stop_sort_near"
         android:icon="@drawable/ic_my_location_white_24dp"
+        android:orderInCategory="2"
         app:showAsAction="always"/>
 </menu>

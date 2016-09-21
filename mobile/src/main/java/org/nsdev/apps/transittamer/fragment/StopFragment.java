@@ -18,6 +18,7 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SnapHelper;
 import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.support.v7.widget.helper.ItemTouchHelper;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -26,6 +27,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -48,19 +50,23 @@ import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.model.StopViewModel;
+import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
 import org.nsdev.apps.transittamer.model.StopDetailModel;
 import org.nsdev.apps.transittamer.net.model.Trip;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
+import org.nsdev.apps.transittamer.ui.ItemClickSupport;
 import org.nsdev.apps.transittamer.ui.StartLinearSnapHelper;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 import org.nsdev.apps.transittamer.utils.ScheduleUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -71,6 +77,7 @@ import io.realm.RealmList;
 import pl.charmas.android.reactivelocation.ReactiveLocationProvider;
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.schedulers.Schedulers;
 import timber.log.Timber;
 
 /**
@@ -102,6 +109,11 @@ public class StopFragment extends RxFragment {
 
     @Inject
     ReactiveLocationProvider mLocationProvider;
+
+    @Inject
+    TransitTamerAPI mApi;
+
+    HashMap<Integer, StopViewModel> mViewModelForPosition = new HashMap<>();
 
     private OneMinuteTimer mTimer;
     private Handler mHandler;
@@ -167,10 +179,11 @@ public class StopFragment extends RxFragment {
 
             @Override
             protected void updateBinding(ItemStopBinding binding, int position) {
+
                 Stop stop = mStops.get(position);
-                binding.setViewModel(new StopViewModel(stop, view -> {
-                    binding.getViewModel().setOpen(!binding.getViewModel().isOpen());
-                }));
+                binding.setViewModel(new StopViewModel(stop));
+
+                mViewModelForPosition.put(position, binding.getViewModel());
 
                 stop.removeChangeListeners();
                 stop.addChangeListener(element -> {
@@ -239,7 +252,9 @@ public class StopFragment extends RxFragment {
                         });
 
                         int indexOfNext = ScheduleUtils.getIndexOfNext(stopRouteSchedule);
-                        ((LinearLayoutManager) stopTimesList.getLayoutManager()).scrollToPositionWithOffset(indexOfNext, 0);
+                        if (indexOfNext > 0) {
+                            ((LinearLayoutManager) stopTimesList.getLayoutManager()).scrollToPositionWithOffset(indexOfNext, 0);
+                        }
                     }
 
                     @Override
@@ -258,6 +273,16 @@ public class StopFragment extends RxFragment {
 
         mBinding.recyclerView.setAdapter(mAdapter);
 
+        ItemClickSupport.addTo(mBinding.recyclerView)
+                .setOnItemLongClickListener((recyclerView, position1, v) -> {
+                    deleteStopAtPosition(position1);
+                    return true;
+                })
+                .setOnItemClickListener((recyclerView, position, v) -> {
+                    StopViewModel stopViewModel = mViewModelForPosition.get(position);
+                    stopViewModel.setOpen(!stopViewModel.isOpen());
+                });
+
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
             @Override
             public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
@@ -268,25 +293,7 @@ public class StopFragment extends RxFragment {
             public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
                 int position = viewHolder.getAdapterPosition();
                 Timber.d("Swiped item %d", position);
-                FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
-                mRealm.executeTransaction(realm -> {
-                    Stop stop = favouriteStops.getStops().get(position);
-                    favouriteStops.getStops().remove(stop);
-                    favouriteStops.setLastUpdated(new Date());
-                    mAdapter.notifyItemRemoved(position);
-
-                    if (getActivity() instanceof CoordinatorProvider) {
-
-                        Snackbar.make(((CoordinatorProvider) getActivity()).getCoordinator(), "Removed stop #" + stop.getStop_id(), Snackbar.LENGTH_LONG)
-                                .setAction(R.string.undo, view -> {
-                                    mRealm.executeTransaction(realm2 -> {
-                                        favouriteStops.getStops().add(position, stop);
-                                        favouriteStops.setLastUpdated(new Date());
-                                    });
-                                    mAdapter.notifyItemInserted(position);
-                                }).show();
-                    }
-                });
+                deleteStopAtPosition(position);
             }
         });
 
@@ -385,6 +392,9 @@ public class StopFragment extends RxFragment {
             case R.id.menu_stop_sort_near:
                 sortStopsByNearest();
                 return true;
+            case R.id.menu_add_stop:
+                doAddStop();
+                break;
         }
 
         return super.onOptionsItemSelected(item);
@@ -486,4 +496,65 @@ public class StopFragment extends RxFragment {
             return old.get(oldItemPosition).equals(newer.get(newItemPosition));
         }
     }
+
+    private void doAddStop() {
+        new MaterialDialog.Builder(getContext())
+                .title(R.string.stops_add_stop)
+                .content(R.string.stops_add_stop_content)
+                .inputType(InputType.TYPE_CLASS_NUMBER)
+                .input(R.string.stops_input_hint, 0, (dialog, input) -> {
+                    RealmList<Stop> newStops = new RealmList<>();
+
+                    Observable.just(input.toString())
+                            .concatMap(s -> mApi.getStop(s))
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribeOn(Schedulers.io())
+                            .subscribe(
+                                    stop -> {
+                                        mRealm.executeTransaction(realm -> {
+                                            newStops.add(mRealm.copyToRealmOrUpdate(stop));
+                                        });
+                                    },
+                                    error -> {
+                                        Timber.e(error, "Adding stop");
+                                    },
+                                    () -> {
+                                        FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+                                        mRealm.executeTransaction(realm -> {
+                                            favouriteStops.getStops().addAll(newStops);
+                                            favouriteStops.setLastUpdated(new Date());
+                                        });
+
+                                        for (Stop newStop : newStops) {
+                                            mDataManager.syncStop(newStop);
+                                        }
+
+                                    }
+                            );
+                }).show();
+    }
+
+    private void deleteStopAtPosition(int position) {
+        FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+        mRealm.executeTransaction(realm -> {
+            Stop stop = favouriteStops.getStops().get(position);
+            favouriteStops.getStops().remove(stop);
+            favouriteStops.setLastUpdated(new Date());
+            mAdapter.notifyItemRemoved(position);
+
+            if (getActivity() instanceof CoordinatorProvider) {
+
+                Snackbar.make(((CoordinatorProvider) getActivity()).getCoordinator(), "Removed stop #" + stop.getStop_id(), Snackbar.LENGTH_LONG)
+                        .setAction(R.string.undo, view -> {
+                            mRealm.executeTransaction(realm2 -> {
+                                favouriteStops.getStops().add(position, stop);
+                                favouriteStops.setLastUpdated(new Date());
+                            });
+                            mAdapter.notifyItemInserted(position);
+                        }).show();
+            }
+        });
+    }
+
+
 }

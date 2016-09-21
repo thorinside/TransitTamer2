@@ -2,7 +2,6 @@ package org.nsdev.apps.transittamer.model;
 
 import android.databinding.BaseObservable;
 import android.databinding.Bindable;
-import android.view.View;
 
 import org.nsdev.apps.transittamer.BR;
 import org.nsdev.apps.transittamer.net.model.Stop;
@@ -13,12 +12,10 @@ import org.nsdev.apps.transittamer.net.model.Stop;
 
 public class StopViewModel extends BaseObservable {
     private final Stop mStop;
-    private View.OnClickListener mOnClickListener;
     private boolean mOpen;
 
-    public StopViewModel(Stop stop, View.OnClickListener onClickListener) {
+    public StopViewModel(Stop stop) {
         mStop = stop;
-        mOnClickListener = onClickListener;
     }
 
     public Stop getStop() {
@@ -33,10 +30,6 @@ public class StopViewModel extends BaseObservable {
     @Bindable
     public String getNext() {
         return mStop.getNextBus();
-    }
-
-    public View.OnClickListener getOnClickListener() {
-        return mOnClickListener;
     }
 
     @Bindable
