@@ -199,6 +199,18 @@ public class StopFragment extends RxFragment {
 
                 binding.map.onCreate(null);
                 binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
+                Menu menu = binding.toolbar.getMenu();
+                if (menu != null) {
+                    menu.clear();
+                }
+                binding.toolbar.inflateMenu(R.menu.stop_card);
+                binding.toolbar.setOnMenuItemClickListener(item -> {
+                    if (item.getItemId() == R.id.action_delete) {
+                        deleteStopAtPosition(position);
+                        return true;
+                    }
+                    return false;
+                });
 
                 RecyclerView routeDetailList = binding.routeDetailList;
                 if (routeDetailList.getLayoutManager() == null) {
@@ -274,30 +286,11 @@ public class StopFragment extends RxFragment {
         mBinding.recyclerView.setAdapter(mAdapter);
 
         ItemClickSupport.addTo(mBinding.recyclerView)
-                .setOnItemLongClickListener((recyclerView, position1, v) -> {
-                    deleteStopAtPosition(position1);
-                    return true;
-                })
                 .setOnItemClickListener((recyclerView, position, v) -> {
                     StopViewModel stopViewModel = mViewModelForPosition.get(position);
                     stopViewModel.setOpen(!stopViewModel.isOpen());
                 });
 
-        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
-            @Override
-            public boolean onMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target) {
-                return false;
-            }
-
-            @Override
-            public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
-                int position = viewHolder.getAdapterPosition();
-                Timber.d("Swiped item %d", position);
-                deleteStopAtPosition(position);
-            }
-        });
-
-        //itemTouchHelper.attachToRecyclerView(mBinding.recyclerView);
     }
 
     private void updateNextBus() {

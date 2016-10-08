@@ -19,7 +19,7 @@ android {
         applicationId "org.nsdev.apps.transittamer"
         minSdkVersion 14
         targetSdkVersion 24
-        versionCode 21
+        versionCode 22
         versionName "2.0.0"
     }
     buildTypes {
@@ -55,14 +55,14 @@ dependencies {
     compile 'com.android.support:transition:24.2.1'
 
     // Maps
-    compile 'com.google.android.gms:play-services-location:9.4.0'
-    compile 'com.google.android.gms:play-services-maps:9.4.0'
+    compile 'com.google.android.gms:play-services-location:9.6.1'
+    compile 'com.google.android.gms:play-services-maps:9.6.1'
 
     // Analytics
-    compile 'com.google.android.gms:play-services-analytics:9.4.0'
+    compile 'com.google.android.gms:play-services-analytics:9.6.1'
 
     // App invites
-    compile 'com.google.android.gms:play-services-appinvite:9.4.0'
+    compile 'com.google.android.gms:play-services-appinvite:9.6.1'
 
     // Legacy database
     compile 'com.j256.ormlite:ormlite-android:4.48'
@@ -101,4 +101,5 @@ dependencies {
 
     // GTFS Mobile Realtime
     compile 'com.google.transit:gtfs-realtime-bindings:0.0.4'
+    compile 'com.android.support.constraint:constraint-layout:1.0.0-alpha9'
 }
