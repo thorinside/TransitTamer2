@@ -6,18 +6,14 @@ import android.databinding.DataBindingUtil;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.transition.TransitionManager;
 import android.support.v4.app.Fragment;
 import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.LinearSnapHelper;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SnapHelper;
-import android.support.v7.widget.StaggeredGridLayoutManager;
-import android.support.v7.widget.helper.ItemTouchHelper;
 import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -35,7 +31,6 @@ import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.squareup.otto.Bus;
 import com.tbruyelle.rxpermissions.RxPermissions;
 import com.trello.rxlifecycle.components.support.RxFragment;
 
@@ -48,14 +43,13 @@ import org.nsdev.apps.transittamer.databinding.ItemStopDetailBinding;
 import org.nsdev.apps.transittamer.databinding.ItemStopTimesBinding;
 import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
+import org.nsdev.apps.transittamer.model.StopDetailModel;
 import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.model.StopViewModel;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
-import org.nsdev.apps.transittamer.model.StopDetailModel;
-import org.nsdev.apps.transittamer.net.model.Trip;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
 import org.nsdev.apps.transittamer.ui.ItemClickSupport;
 import org.nsdev.apps.transittamer.ui.StartLinearSnapHelper;
@@ -63,7 +57,6 @@ import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 import org.nsdev.apps.transittamer.utils.ScheduleUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -100,9 +93,6 @@ public class StopFragment extends RxFragment {
 
     @Inject
     DataManager mDataManager;
-
-    @Inject
-    Bus mBus;
 
     @Inject
     Realm mRealm;
@@ -149,8 +139,6 @@ public class StopFragment extends RxFragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_stop, container, false);
-
-        mBus.register(this);
 
         mStops = new RealmList<>();
 
@@ -318,7 +306,6 @@ public class StopFragment extends RxFragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        mBus.unregister(this);
     }
 
     @Override
@@ -410,6 +397,7 @@ public class StopFragment extends RxFragment {
                 .setExpirationDuration(TimeUnit.SECONDS.toMillis(LOCATION_TIMEOUT_IN_SECONDS))
                 .setInterval(LOCATION_UPDATE_INTERVAL);
 
+        @SuppressWarnings("MissingPermission")
         Observable<Location> goodEnoughQuicklyOrNothingObservable = mLocationProvider.getUpdatedLocation(req)
                 .filter(location -> location.getAccuracy() < SUFFICIENT_ACCURACY)
                 .timeout(LOCATION_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS, Observable.just(null), AndroidSchedulers.mainThread())

@@ -6,6 +6,7 @@ import android.content.res.Resources;
 import android.databinding.DataBindingUtil;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -38,6 +39,7 @@ import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.ShapePath;
 import org.nsdev.apps.transittamer.net.model.Stop;
+import org.nsdev.apps.transittamer.utils.ScheduleUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,6 +73,8 @@ public class MapFragment extends Fragment {
     private HashMap<Stop, Marker> mMarkerForStop = new HashMap<>();
 
     private List<Polyline> mRouteShapes = new ArrayList<>();
+    public static final int[] COLORS = new int[]{Color.BLUE, Color.GREEN, Color.RED, Color.CYAN, Color.MAGENTA, Color.YELLOW};
+    private HashMap<Polyline, String> mRouteNames = new HashMap<>();
 
     public MapFragment() {
         // Required empty public constructor
@@ -180,11 +184,18 @@ public class MapFragment extends Fragment {
                 routeShape.remove();
             }
             mRouteShapes.clear();
+            mRouteNames.clear();
 
             StopDetailModel model = new StopDetailModel(mRealm, stop);
+
+            int colorIndex = 0;
             for (StopRouteSchedule schedule : model.getSchedules()) {
                 String routeId = schedule.getRoute().getRoute_id();
+                String routeNumber = schedule.getRoute().getRoute_short_name();
+                String headSign = ScheduleUtils.getHeadSign(mRealm, schedule);
+                String routeName = String.format("%s \u2014 %s", routeNumber, headSign);
 
+                final int routeColor = COLORS[colorIndex++ % COLORS.length];
                 mApi.getShape(routeId)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
@@ -194,13 +205,15 @@ public class MapFragment extends Fragment {
                                         PolylineOptions line = new PolylineOptions()
                                                 .addAll(shape)
                                                 .width(10)
-                                                .clickable(false)
+                                                .clickable(true)
+                                                .geodesic(true)
                                                 .visible(true)
                                                 .zIndex(1)
-                                                .color(Color.BLUE);
+                                                .color(routeColor);
                                         Polyline polyline = mMap.addPolyline(line);
                                         polyline.setVisible(true);
                                         mRouteShapes.add(polyline);
+                                        mRouteNames.put(polyline, routeName);
                                     }
                                 },
                                 error -> {
@@ -208,6 +221,14 @@ public class MapFragment extends Fragment {
                                 });
 
             }
+
+            mMap.setOnPolylineClickListener(polyline -> {
+                String routeName = mRouteNames.get(polyline);
+                Snackbar.make(((StopFragment.CoordinatorProvider) getActivity()).getCoordinator(), routeName, Snackbar.LENGTH_LONG).show();
+            });
+
+            mMap.setBuildingsEnabled(false);
+            mMap.setIndoorEnabled(false);
 
             return false;
         });
