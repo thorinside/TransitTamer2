@@ -1,11 +1,17 @@
 package org.nsdev.apps.transittamer.fragment;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.databinding.DataBindingUtil;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -21,6 +27,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.PolyUtil;
+import com.tbruyelle.rxpermissions.RxPermissions;
 
 import org.nsdev.apps.transittamer.App;
 import org.nsdev.apps.transittamer.R;
@@ -90,6 +97,7 @@ public class MapFragment extends Fragment {
         }
 
         ((App) getContext().getApplicationContext()).getUserComponent().inject(this);
+        setHasOptionsMenu(true);
     }
 
     @Override
@@ -258,4 +266,32 @@ public class MapFragment extends Fragment {
         });
 
     }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.map, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.menu_show_location:
+
+                RxPermissions.getInstance(getContext())
+                        .request(Manifest.permission.ACCESS_FINE_LOCATION)
+                        .subscribe(granted -> {
+                            if (granted) {
+                                if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                    mMap.setMyLocationEnabled(!mMap.isMyLocationEnabled());
+                                }
+                            }
+                        });
+
+                return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
 }
