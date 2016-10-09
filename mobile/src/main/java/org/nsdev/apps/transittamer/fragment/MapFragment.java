@@ -159,6 +159,12 @@ public class MapFragment extends Fragment {
         mBinding.map.onLowMemory();
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mRealm.close();
+    }
+
     private void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
