@@ -103,7 +103,10 @@ public class DataManager {
                 });
     }
 
+    boolean shouldClear = true;
+
     private void syncStopSchedule(Stop stop) {
+        shouldClear = true;
         for (Route route : stop.getRoutes()) {
             Log.e("DataManager", "Route: " + route.getRoute_long_name());
             Realm realm = Realm.getInstance(mRealmConfiguration);
@@ -122,6 +125,11 @@ public class DataManager {
                                         schedule.add(realm1.copyToRealm(stopTime));
                                     }
                                     stopRouteSchedule = realm1.copyToRealm(stopRouteSchedule);
+
+                                    if (shouldClear) {
+                                        shouldClear = false;
+                                        stop.getSchedules().deleteAllFromRealm();
+                                    }
                                     stop.getSchedules().add(stopRouteSchedule);
 
                                     stop.setStopRoutes(getStopRoutes(stop));
