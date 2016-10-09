@@ -68,9 +68,11 @@ public class DataManager {
                 .map(stopId -> {
                     try (Realm realm = Realm.getInstance(mRealmConfiguration)) {
                         Stop stop1 = realm.where(Stop.class).equalTo("stop_id", stopId).findFirst();
-                        realm.executeTransaction(realm1 -> {
-                            stop1.setNextBus(getNextBus(stop1));
-                        });
+                        if (stop1 != null) {
+                            realm.executeTransaction(realm1 -> {
+                                stop1.setNextBus(getNextBus(stop1));
+                            });
+                        }
                         return true;
                     }
                 })
@@ -101,7 +103,10 @@ public class DataManager {
                 });
     }
 
+    boolean shouldClear = true;
+
     private void syncStopSchedule(Stop stop) {
+        shouldClear = true;
         for (Route route : stop.getRoutes()) {
             Log.e("DataManager", "Route: " + route.getRoute_long_name());
             Realm realm = Realm.getInstance(mRealmConfiguration);
@@ -120,6 +125,11 @@ public class DataManager {
                                         schedule.add(realm1.copyToRealm(stopTime));
                                     }
                                     stopRouteSchedule = realm1.copyToRealm(stopRouteSchedule);
+
+                                    if (shouldClear) {
+                                        shouldClear = false;
+                                        stop.getSchedules().deleteAllFromRealm();
+                                    }
                                     stop.getSchedules().add(stopRouteSchedule);
 
                                     stop.setStopRoutes(getStopRoutes(stop));
@@ -170,6 +180,8 @@ public class DataManager {
     }
 
     private String getNextBus(Stop stop) {
+        if (stop == null) return "N/A";
+
         final NextCalculationState state = new NextCalculationState();
 
         for (StopRouteSchedule schedule : stop.getSchedules()) {

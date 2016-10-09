@@ -8,4 +8,12 @@
         android:icon="@drawable/ic_my_location_white_24dp"
         android:orderInCategory="2"
         app:showAsAction="always"/>
+
+    <item
+        android:id="@+id/menu_add_stop"
+        android:orderInCategory="1"
+        android:title="@string/stops_add_stop"
+        android:icon="@drawable/ic_add_location_white_24dp"
+        app:showAsAction="ifRoom"/>
+
 </menu>

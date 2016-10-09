@@ -124,7 +124,7 @@ public class MainActivity extends RxAppCompatActivity
         ViewPagerAdapter adapter = new ViewPagerAdapter(getSupportFragmentManager());
         adapter.addFragment(StopFragment.newInstance(), "Stop");
         adapter.addFragment(RouteFragment.newInstance(null, null), "Route");
-        adapter.addFragment(MapFragment.newInstance(null, null), "Map");
+        adapter.addFragment(MapFragment.newInstance(), "Map");
         viewPager.setAdapter(adapter);
         viewPager.setOffscreenPageLimit(3);
     }

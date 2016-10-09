@@ -52,45 +52,70 @@
                         tools:background="#aaa"
                         />
 
-                    <LinearLayout
+                    <android.support.constraint.ConstraintLayout
                         android:layout_width="match_parent"
                         android:layout_height="110dp"
                         android:layout_gravity="center_vertical"
                         android:layout_marginLeft="16dp"
                         android:orientation="vertical">
 
+                        <android.support.v7.widget.Toolbar
+                            android:id="@+id/toolbar"
+                            android:layout_width="48dp"
+                            android:layout_height="0dp"
+                            android:paddingRight="-8dp"
+                            tools:background="#6f00"
+                            android:background="@android:color/transparent"
+                            android:minHeight="?attr/actionBarSize"
+                            binding:layout_constraintRight_toRightOf="parent"
+                            binding:layout_constraintTop_toTopOf="@+id/textView3"
+                            binding:layout_constraintBottom_toBottomOf="@+id/textView3"
+                            />
+
                         <TextView
-                            android:layout_width="match_parent"
+                            android:id="@+id/textView3"
+                            android:layout_width="246dp"
                             android:layout_height="wrap_content"
                             android:text="@{viewModel.stop.stop_code}"
                             android:textAppearance="@style/TextAppearance.AppCompat.Title"
+                            tools:layout_editor_absoluteX="0dp"
+                            tools:layout_editor_absoluteY="33dp"
                             tools:text="6604"/>
 
                         <TextView
-                            android:layout_width="match_parent"
+                            android:id="@+id/textView5"
+                            android:layout_width="246dp"
                             android:layout_height="wrap_content"
                             android:ellipsize="end"
                             android:lines="2"
                             android:maxLines="2"
                             android:text="@{viewModel.stop.stop_name}"
                             android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                            binding:layout_constraintLeft_toLeftOf="@+id/textView3"
+                            binding:layout_constraintTop_toBottomOf="@+id/textView3"
                             tools:text="SB Brisebois DR @ Northmount DR NW"/>
 
                         <TextView
-                            android:layout_width="match_parent"
+                            android:id="@+id/textView4"
+                            android:layout_width="246dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
                             android:text="@{viewModel.routes}"
                             android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+                            binding:layout_constraintLeft_toLeftOf="@+id/textView3"
+                            binding:layout_constraintTop_toBottomOf="@+id/textView5"
                             tools:text="10, 32, 37"/>
 
                         <TextView
-                            android:layout_width="match_parent"
+                            android:layout_width="246dp"
                             android:layout_height="wrap_content"
                             android:text="@{viewModel.next}"
                             android:textAppearance="@style/TextAppearance.AppCompat.Body1"
+                            binding:layout_constraintLeft_toLeftOf="@+id/textView3"
+                            binding:layout_constraintTop_toBottomOf="@+id/textView4"
                             tools:text="Next: #10, 8:17am"/>
 
-                    </LinearLayout>
+                    </android.support.constraint.ConstraintLayout>
 
                 </LinearLayout>
 
