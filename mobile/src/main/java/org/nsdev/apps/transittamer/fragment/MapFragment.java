@@ -199,10 +199,11 @@ public class MapFragment extends Fragment {
                 String routeId = schedule.getRoute().getRoute_id();
                 String routeNumber = schedule.getRoute().getRoute_short_name();
                 String headSign = ScheduleUtils.getHeadSign(mRealm, schedule);
+                String directionId = ScheduleUtils.getDirectionId(mRealm, schedule);
                 String routeName = String.format("%s \u2014 %s", routeNumber, headSign);
 
                 final int routeColor = COLORS[colorIndex++ % COLORS.length];
-                mApi.getShape(routeId)
+                mApi.getShape(routeId, directionId)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(shapePaths -> {
