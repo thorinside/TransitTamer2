@@ -3,8 +3,6 @@ package org.nsdev.apps.transittamer.managers;
 import android.content.Context;
 import android.util.Log;
 
-import com.squareup.otto.Bus;
-
 import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.Route;
@@ -31,13 +29,11 @@ import timber.log.Timber;
 public class DataManager {
     private final Context mContext;
     private final TransitTamerAPI mApi;
-    private final Bus mBus;
     private final RealmConfiguration mRealmConfiguration;
 
-    public DataManager(Context context, TransitTamerAPI api, Bus bus, RealmConfiguration config) {
+    public DataManager(Context context, TransitTamerAPI api, RealmConfiguration config) {
         mContext = context;
         mApi = api;
-        mBus = bus;
         mRealmConfiguration = config;
     }
 

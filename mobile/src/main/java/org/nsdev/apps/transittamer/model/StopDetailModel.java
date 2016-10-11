@@ -5,6 +5,7 @@ import org.nsdev.apps.transittamer.net.model.StopTime;
 import org.nsdev.apps.transittamer.net.model.Trip;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.TreeMap;
 
 import io.realm.Realm;
@@ -47,6 +48,8 @@ public class StopDetailModel {
         for (String headsign : headSignTimes.keySet()) {
             mSchedules.add(headSignTimes.get(headsign));
         }
+
+        Collections.sort(mSchedules, (o1, o2) -> o1.getRoute().getRoute_short_name().compareTo(o2.getRoute().getRoute_short_name()));
     }
 
     public ArrayList<StopRouteSchedule> getSchedules() {

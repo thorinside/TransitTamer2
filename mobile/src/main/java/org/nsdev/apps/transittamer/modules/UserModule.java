@@ -2,8 +2,6 @@ package org.nsdev.apps.transittamer.modules;
 
 import android.content.SharedPreferences;
 
-import com.squareup.otto.Bus;
-
 import org.nsdev.apps.transittamer.App;
 import org.nsdev.apps.transittamer.managers.DataManager;
 import org.nsdev.apps.transittamer.managers.ProfileManager;
@@ -36,8 +34,8 @@ public class UserModule {
 
     @UserScope
     @Provides
-    DataManager getDataManager(App context, TransitTamerAPI api, Bus bus, RealmConfiguration config) {
-        return new DataManager(context, api, bus, config);
+    DataManager getDataManager(App context, TransitTamerAPI api, RealmConfiguration config) {
+        return new DataManager(context, api, config);
     }
 
     @UserScope
@@ -48,14 +46,8 @@ public class UserModule {
 
     @UserScope
     @Provides
-    Bus getBus() {
-        return new Bus();
-    }
-
-    @UserScope
-    @Provides
-    RealmConfiguration getRealmConfiguration(App context) {
-        RealmConfiguration config = new RealmConfiguration.Builder(context)
+    RealmConfiguration getRealmConfiguration() {
+        RealmConfiguration config = new RealmConfiguration.Builder()
                 .deleteRealmIfMigrationNeeded()
                 .build();
 

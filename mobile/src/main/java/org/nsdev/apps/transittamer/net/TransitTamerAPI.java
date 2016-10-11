@@ -48,17 +48,17 @@ public interface TransitTamerAPI {
     @GET("findroute/{shortName}")
     Observable<List<Route>> getRoute(@Path("shortName") String shortName);
 
-    @GET("stops/{routeId}")
-    Observable<List<Stop>> getStopsForRoute(@Path("routeId") String routeId);
+    @GET("stops/{routeId}/{directionId}")
+    Observable<List<Stop>> getStopsForRoute(@Path("routeId") String routeId, @Path("directionId") String directionId);
 
     @GET("stops/{lon}/{lat}/{distance}")
     Observable<List<Stop>> getStopsNearby(@Path("lon") double longitude, @Path("lat") double latitude, @Path("distance") double distance);
 
-    @GET("stop/{routeId}/{lon}/{lat}")
-    Observable<Stop> getNearestStop(@Path("routeId") String routeId, @Path("lon") double longitude, @Path("lat") double latitude);
+    @GET("stop/{routeId}/{directionId}/{lon}/{lat}")
+    Observable<Stop> getNearestStop(@Path("routeId") String routeId, @Path("directionId") String directionId, @Path("lon") double longitude, @Path("lat") double latitude);
 
-    @GET("shape/{routeId}")
-    Observable<List<ShapePath>> getShape(@Path("routeId") String routeId);
+    @GET("shape/{routeId}/{directionId}")
+    Observable<List<ShapePath>> getShape(@Path("routeId") String routeId, @Path("directionId") String directionId);
 
     @GET("schedule/{stopId}/{routeId}")
     Observable<List<StopTime>> getStopSchedule(@Path("stopId") String stopId, @Path("routeId") String routeId);
@@ -68,8 +68,6 @@ public interface TransitTamerAPI {
 
     @GET("trip/{tripId}")
     Observable<List<Trip>> getTrip(@Path("tripId") String tripId);
-
-    ;
 
     @GET("trips/{routeId}")
     Observable<List<Trip>> getTrips(@Path("routeId") String routeId);

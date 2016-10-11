@@ -1,4 +1,3 @@
-apply plugin: 'android-sdk-manager'
 apply plugin: 'com.android.application'
 apply plugin: 'com.neenbedankt.android-apt'
 apply plugin: 'me.tatarka.retrolambda'
@@ -14,12 +13,12 @@ android {
         }
     }
     compileSdkVersion 24
-    buildToolsVersion '24.0.1'
+    buildToolsVersion '24.0.3'
     defaultConfig {
         applicationId "org.nsdev.apps.transittamer"
         minSdkVersion 14
         targetSdkVersion 24
-        versionCode 22
+        versionCode 23
         versionName "2.0.0"
     }
     buildTypes {
@@ -59,24 +58,15 @@ dependencies {
     compile 'com.google.android.gms:play-services-maps:9.6.1'
     compile 'com.google.maps.android:android-maps-utils:0.4.4'
 
-    // Analytics
-    compile 'com.google.android.gms:play-services-analytics:9.6.1'
-
-    // App invites
-    compile 'com.google.android.gms:play-services-appinvite:9.6.1'
-
     // Legacy database
     compile 'com.j256.ormlite:ormlite-android:4.48'
 
-    // New database
-    compile 'com.cesarferreira.rxpaper:rxpaper:0.4.1'
-
     // UI
-    compile 'com.afollestad.material-dialogs:core:0.9.0.1'
+    compile 'com.afollestad.material-dialogs:core:0.9.0.2'
     compile 'com.roughike:bottom-bar:2.0.2'
 
     // Logging
-    compile 'com.jakewharton.timber:timber:4.3.0'
+    compile 'com.jakewharton.timber:timber:4.3.1'
 
     // REST
     compile 'com.squareup.retrofit2:retrofit:2.1.0'
@@ -85,22 +75,20 @@ dependencies {
     compile 'com.squareup.okhttp3:logging-interceptor:3.4.1'
 
     // Rx
-    compile 'io.reactivex:rxjava:1.1.10'
+    compile 'io.reactivex:rxjava:1.2.1'
     compile 'io.reactivex:rxandroid:1.2.1'
-    compile 'com.trello:rxlifecycle:0.7.0'
-    compile 'com.trello:rxlifecycle-components:0.7.0'
-    compile 'com.tbruyelle.rxpermissions:rxpermissions:0.7.0@aar'
-    compile 'pl.charmas.android:android-reactive-location:0.9@aar'
+    compile 'com.trello:rxlifecycle:0.8.0'
+    compile 'com.trello:rxlifecycle-components:0.8.0'
+    compile 'com.tbruyelle.rxpermissions:rxpermissions:0.7.1@aar'
+    compile 'pl.charmas.android:android-reactive-location:0.10@aar'
 
     // Dagger 2
     compile 'com.google.dagger:dagger:2.6'
     apt 'com.google.dagger:dagger-compiler:2.6'
     provided 'org.glassfish:javax.annotation:10.0-b28'
 
-    // Event bus
-    compile 'com.squareup:otto:1.3.8'
+    // Util
+    compile 'com.github.lzyzsd.randomcolor:library:1.0.0'
 
-    // GTFS Mobile Realtime
-    compile 'com.google.transit:gtfs-realtime-bindings:0.0.4'
     compile 'com.android.support.constraint:constraint-layout:1.0.0-alpha9'
 }

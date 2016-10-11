@@ -95,4 +95,22 @@ public class ScheduleUtils {
         return TextUtils.join(" / ", signs);
     }
 
+    public static String getDirectionId(Realm realm, StopRouteSchedule schedule) {
+        ArrayList<String> directions = new ArrayList<>();
+
+        for (StopTime stopTime : schedule.getSchedule()) {
+            String tripId = stopTime.getTrip_id();
+            Trip trip = realm.where(Trip.class)
+                    .equalTo("trip_id", tripId)
+                    .findFirst();
+            if (!directions.contains(trip.getDirection_id())) {
+                directions.add(trip.getDirection_id());
+            }
+
+        }
+        Collections.sort(directions, (first, second) -> first.compareTo(second));
+
+        return TextUtils.join(" / ", directions);
+    }
+
 }
