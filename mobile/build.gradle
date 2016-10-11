@@ -87,8 +87,6 @@ dependencies {
     apt 'com.google.dagger:dagger-compiler:2.6'
     provided 'org.glassfish:javax.annotation:10.0-b28'
 
-    // Util
-    compile 'com.github.lzyzsd.randomcolor:library:1.0.0'
-
+    // Layout
     compile 'com.android.support.constraint:constraint-layout:1.0.0-alpha9'
 }
