@@ -60,6 +60,9 @@ public interface TransitTamerAPI {
     @GET("shape/{routeId}/{directionId}")
     Observable<List<ShapePath>> getShape(@Path("routeId") String routeId, @Path("directionId") String directionId);
 
+    @GET("shape/{shapeId}")
+    Observable<List<ShapePath>> getShape(@Path("shapeId") String shapeId);
+
     @GET("schedule/{stopId}/{routeId}")
     Observable<List<StopTime>> getStopSchedule(@Path("stopId") String stopId, @Path("routeId") String routeId);
 

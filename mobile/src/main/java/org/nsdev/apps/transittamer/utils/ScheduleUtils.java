@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.Log;
 
+import org.nsdev.apps.transittamer.model.StopDetailModel;
 import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.net.model.StopTime;
 import org.nsdev.apps.transittamer.net.model.Trip;
@@ -14,7 +15,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import io.realm.Realm;
 import io.realm.RealmList;
@@ -113,4 +116,38 @@ public class ScheduleUtils {
         return TextUtils.join(" / ", directions);
     }
 
+    public static Map<String, String> getShapeIds(Realm realm, StopDetailModel model) {
+
+        HashMap<String, String> routeMap = new HashMap<>();
+        HashMap<String, Date> departureTimeMap = new HashMap<>();
+        HashMap<String, String> routeNameMap = new HashMap<>();
+
+        for (StopRouteSchedule stopRouteSchedule : model.getSchedules()) {
+            int index = getIndexOfNext(stopRouteSchedule);
+            if (index != -1) {
+                StopTime stopTime = stopRouteSchedule.getSchedule().get(index);
+                String tripId = stopTime.getTrip_id();
+                Trip trip = realm.where(Trip.class)
+                        .equalTo("trip_id", tripId)
+                        .findFirst();
+                String headSign = trip.getTrip_headsign();
+                String shapeId = trip.getShape_id();
+                Date departure = getDateForDepartureTime(new Date(), stopTime);
+                String routeId = stopRouteSchedule.getRoute().getRoute_id();
+                if (departureTimeMap.containsKey(routeId)) {
+                    Date otherDeparture = departureTimeMap.get(routeId);
+                    if (otherDeparture.before(departure)) {
+                        continue;
+                    }
+                }
+                routeMap.put(routeId, shapeId);
+                departureTimeMap.put(routeId, departure);
+
+                String routeName = String.format("%s \u2014 %s", stopRouteSchedule.getRoute().getRoute_short_name(), headSign);
+                routeNameMap.put(routeName, shapeId);
+
+            }
+        }
+        return routeNameMap;
+    }
 }

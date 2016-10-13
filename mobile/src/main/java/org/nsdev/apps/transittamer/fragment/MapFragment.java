@@ -35,7 +35,6 @@ import org.nsdev.apps.transittamer.R;
 import org.nsdev.apps.transittamer.databinding.FragmentMapBinding;
 import org.nsdev.apps.transittamer.model.FavouriteStops;
 import org.nsdev.apps.transittamer.model.StopDetailModel;
-import org.nsdev.apps.transittamer.model.StopRouteSchedule;
 import org.nsdev.apps.transittamer.net.TransitTamerAPI;
 import org.nsdev.apps.transittamer.net.model.ShapePath;
 import org.nsdev.apps.transittamer.net.model.Stop;
@@ -45,6 +44,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Inject;
@@ -194,16 +194,17 @@ public class MapFragment extends Fragment {
 
             StopDetailModel model = new StopDetailModel(mRealm, stop);
 
+            Map<String, String> shapeIds = ScheduleUtils.getShapeIds(mRealm, model);
+
             int colorIndex = 0;
-            for (StopRouteSchedule schedule : model.getSchedules()) {
-                String routeId = schedule.getRoute().getRoute_id();
-                String routeNumber = schedule.getRoute().getRoute_short_name();
-                String headSign = ScheduleUtils.getHeadSign(mRealm, schedule);
-                String directionId = ScheduleUtils.getDirectionId(mRealm, schedule);
-                String routeName = String.format("%s \u2014 %s", routeNumber, headSign);
+
+            for (Map.Entry<String, String> entry : shapeIds.entrySet()) {
+
+                String routeName = entry.getKey();
+                String shapeId = entry.getValue();
 
                 final int routeColor = COLORS[colorIndex++ % COLORS.length];
-                mApi.getShape(routeId, directionId)
+                mApi.getShape(shapeId)
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(shapePaths -> {
@@ -213,7 +214,7 @@ public class MapFragment extends Fragment {
                                                 .addAll(shape)
                                                 .width(10)
                                                 .clickable(true)
-                                                .geodesic(true)
+                                                .geodesic(false)
                                                 .visible(true)
                                                 .zIndex(1)
                                                 .color(routeColor);
