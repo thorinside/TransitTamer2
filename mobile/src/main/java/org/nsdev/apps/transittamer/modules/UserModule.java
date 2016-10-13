@@ -46,8 +46,8 @@ public class UserModule {
 
     @UserScope
     @Provides
-    RealmConfiguration getRealmConfiguration(App context) {
-        RealmConfiguration config = new RealmConfiguration.Builder(context)
+    RealmConfiguration getRealmConfiguration() {
+        RealmConfiguration config = new RealmConfiguration.Builder()
                 .deleteRealmIfMigrationNeeded()
                 .build();
 
