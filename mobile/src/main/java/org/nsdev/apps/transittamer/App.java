@@ -1,6 +1,7 @@
 package org.nsdev.apps.transittamer;
 
 import android.app.Application;
+import android.os.StrictMode;
 import android.util.Log;
 
 import com.j256.ormlite.dao.Dao;
@@ -63,6 +64,16 @@ public class App extends Application {
 
         if (BuildConfig.DEBUG) {
             Timber.plant(new Timber.DebugTree());
+
+            // Set strict mode
+            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .penaltyDialog()
+                    .build());
+            StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder().detectAll()
+                    .penaltyLog()
+                    .build());
         }
     }
 

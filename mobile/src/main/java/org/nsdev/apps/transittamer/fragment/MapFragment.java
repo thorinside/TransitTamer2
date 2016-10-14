@@ -1,6 +1,7 @@
 package org.nsdev.apps.transittamer.fragment;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.databinding.DataBindingUtil;
@@ -94,7 +95,15 @@ public class MapFragment extends Fragment {
     }
 
     @Override
+    public void onAttach(Context context) {
+        Timber.w("onAttach");
+        super.onAttach(context);
+    }
+
+    @Override
     public void onCreate(Bundle savedInstanceState) {
+        Timber.w("onCreate");
+
         super.onCreate(savedInstanceState);
         //noinspection StatementWithEmptyBody
         if (getArguments() != null) {
@@ -107,6 +116,7 @@ public class MapFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        Timber.w("onCreateView");
         // Inflate the layout for this fragment
         mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_map, container, false);
 
@@ -119,54 +129,90 @@ public class MapFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
+        Timber.w("onDestroyView");
         super.onDestroyView();
+
+        GoogleMap googleMap = (GoogleMap) mBinding.map.getTag();
+        if (googleMap != null) {
+            googleMap.clear();
+            googleMap.setMapType(GoogleMap.MAP_TYPE_NONE);
+        }
+
+        mMarkerForStop.clear();
+        mRouteShapes.clear();
+        mRouteNames.clear();
         mBinding.map.onDestroy();
+        mFavouriteStops.removeChangeListeners();
     }
 
     @Override
     public void onStart() {
+        Timber.w("onStart");
         super.onStart();
         mBinding.map.onStart();
     }
 
     @Override
     public void onStop() {
-        super.onStop();
+        Timber.w("onStop");
         mBinding.map.onStop();
+        mMarkerForStop.clear();
+        mRouteShapes.clear();
+        mRouteNames.clear();
+        super.onStop();
     }
 
     @Override
     public void onPause() {
-        super.onPause();
+        Timber.w("onPause");
         mBinding.map.onPause();
+        super.onPause();
     }
 
     @Override
     public void onResume() {
+        Timber.w("onResume");
         super.onResume();
         mBinding.map.onResume();
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
+        Timber.w("onSaveInstanceState");
+
         super.onSaveInstanceState(outState);
-        mBinding.map.onSaveInstanceState(outState);
+        try {
+            //mBinding.map.onSaveInstanceState(outState);
+        } catch (NullPointerException ignore) {
+            // Is thrown in rare cases
+            Timber.e(ignore);
+        }
     }
 
     @Override
     public void onLowMemory() {
+        Timber.w("onLowMemory");
         super.onLowMemory();
         mBinding.map.onLowMemory();
     }
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
+        Timber.w("onDestroy");
+        try {
+            mBinding.map.onDestroy();
+        } catch (NullPointerException ignore) {
+            // Seems to happen sometimes
+            Timber.e(ignore);
+        }
         mRealm.close();
+        super.onDestroy();
     }
 
     private void onMapReady(GoogleMap googleMap) {
+        Timber.w("onMapReady");
         mMap = googleMap;
+        mBinding.map.setTag(googleMap);
 
         try {
             // Customize the map
@@ -246,7 +292,7 @@ public class MapFragment extends Fragment {
         mFavouriteStops = mRealm.where(FavouriteStops.class).equalTo("id", 0).findAllAsync();
 
         mFavouriteStops.addChangeListener(stops -> {
-            Timber.d("Favourite stops changed.");
+            Timber.w("Favourite stops changed.");
 
             Set<Stop> currentStops = new HashSet<>();
             currentStops.addAll(mMarkerForStop.keySet());

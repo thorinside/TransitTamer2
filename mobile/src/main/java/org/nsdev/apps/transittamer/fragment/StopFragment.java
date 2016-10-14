@@ -15,7 +15,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SnapHelper;
 import android.text.InputType;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -27,6 +26,8 @@ import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapView;
+import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
@@ -104,6 +105,7 @@ public class StopFragment extends RxFragment {
     TransitTamerAPI mApi;
 
     HashMap<Integer, StopViewModel> mViewModelForPosition = new HashMap<>();
+    List<GoogleMap> mMaps = new ArrayList<>();
 
     private OneMinuteTimer mTimer;
     private Handler mHandler;
@@ -162,7 +164,7 @@ public class StopFragment extends RxFragment {
         mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
             @Override
             public int getItemCount() {
-                return mStops.size();
+                return mStops == null ? 0 : mStops.size();
             }
 
             @Override
@@ -186,7 +188,7 @@ public class StopFragment extends RxFragment {
                 });
 
                 binding.map.onCreate(null);
-                binding.map.getMapAsync(googleMap -> setupMap(stop, googleMap));
+                binding.map.getMapAsync(googleMap -> setupMap(stop, binding.map, googleMap));
                 Menu menu = binding.toolbar.getMenu();
                 if (menu != null) {
                     menu.clear();
@@ -246,7 +248,7 @@ public class StopFragment extends RxFragment {
 
                             @Override
                             protected void recycleBinding(ItemStopTimesBinding binding) {
-
+                                Timber.w("recycleBinding-a");
                             }
 
                         });
@@ -259,15 +261,25 @@ public class StopFragment extends RxFragment {
 
                     @Override
                     protected void recycleBinding(ItemStopDetailBinding binding) {
-
+                        Timber.w("recycleBinding-b");
                     }
                 });
             }
 
             @Override
             protected void recycleBinding(ItemStopBinding binding) {
-                Log.e("StopFragment", "Binding Recycling");
+                Timber.w("recycleBinding-c");
                 binding.getViewModel().getStop().removeChangeListeners();
+
+                // Clear the google map
+                GoogleMap googleMap = (GoogleMap) binding.map.getTag();
+                if (googleMap != null) {
+                    googleMap.clear();
+                    googleMap.setMapType(GoogleMap.MAP_TYPE_NONE);
+                }
+
+                binding.map.setTag(null);
+                binding.map.onDestroy();
             }
         };
 
@@ -287,7 +299,11 @@ public class StopFragment extends RxFragment {
         }
     }
 
-    private void setupMap(Stop stop, GoogleMap googleMap) {
+    private void setupMap(Stop stop, MapView map, GoogleMap googleMap) {
+        MapsInitializer.initialize(getContext().getApplicationContext());
+
+        map.setTag(googleMap);
+
         LatLng latLng = new LatLng(stop.getStop_lat(), stop.getStop_lon());
         googleMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
 
@@ -301,19 +317,36 @@ public class StopFragment extends RxFragment {
         );
 
         googleMap.getUiSettings().setMapToolbarEnabled(false);
+
+        mMaps.add(googleMap);
     }
 
     @Override
     public void onDestroyView() {
+        Timber.w("onDestroyView");
         super.onDestroyView();
+
+        for (GoogleMap map : mMaps) {
+            map.clear();
+            map.setMapType(GoogleMap.MAP_TYPE_NONE);
+        }
+
+        for (Stop stop : mStops) {
+            stop.removeChangeListeners();
+        }
+
+        mStops = null;
+        mAdapter.notifyDataSetChanged();
+        mBinding.recyclerView.setAdapter(null);
+        mHandler.removeCallbacks(mChangeHandler);
+        mTimer.onDestroy();
     }
 
     @Override
     public void onDestroy() {
+        Timber.w("onDestroy");
         super.onDestroy();
         mRealm.close();
-        mTimer.onDestroy();
-        mHandler.removeCallbacks(mChangeHandler);
     }
 
     @Override
