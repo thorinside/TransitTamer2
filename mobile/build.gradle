@@ -18,7 +18,7 @@ android {
         applicationId "org.nsdev.apps.transittamer"
         minSdkVersion 14
         targetSdkVersion 24
-        versionCode 24
+        versionCode 25
         versionName "2.0.0"
     }
     buildTypes {
