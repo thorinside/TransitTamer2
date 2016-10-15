@@ -16,7 +16,7 @@ android {
     buildToolsVersion '24.0.3'
     defaultConfig {
         applicationId "org.nsdev.apps.transittamer"
-        minSdkVersion 14
+        minSdkVersion 17
         targetSdkVersion 24
         versionCode 25
         versionName "2.0.0"

@@ -2,6 +2,7 @@ package org.nsdev.apps.transittamer.fragment;
 
 
 import android.Manifest;
+import android.content.Context;
 import android.databinding.DataBindingUtil;
 import android.location.Location;
 import android.os.Bundle;
@@ -196,7 +197,7 @@ public class StopFragment extends RxFragment {
                 binding.toolbar.inflateMenu(R.menu.stop_card);
                 binding.toolbar.setOnMenuItemClickListener(item -> {
                     if (item.getItemId() == R.id.action_delete) {
-                        deleteStopAtPosition(position);
+                        deleteStop(stop);
                         return true;
                     }
                     return false;
@@ -210,60 +211,7 @@ public class StopFragment extends RxFragment {
 
                 StopDetailModel stopDetailModel = new StopDetailModel(mRealm, stop);
 
-                routeDetailList.setAdapter(new BindingAdapter<ItemStopDetailBinding>(R.layout.item_stop_detail) {
-
-                    @Override
-                    public int getItemCount() {
-                        return stopDetailModel.getSchedules().size();
-                    }
-
-                    @Override
-                    protected void updateBinding(ItemStopDetailBinding detailBinding, int position) {
-                        StopRouteSchedule stopRouteSchedule = stopDetailModel.getSchedules().get(position);
-
-                        Route route = stopRouteSchedule.getRoute();
-                        detailBinding.setRoute(String.format("%s \u2014 %s", route.getRoute_short_name(), ScheduleUtils.getHeadSign(mRealm, stopRouteSchedule)));
-
-                        RecyclerView stopTimesList = detailBinding.stopTimesList;
-                        if (stopTimesList.getLayoutManager() == null) {
-                            final LinearLayoutManager linearLayoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
-                            stopTimesList.setHasFixedSize(true);
-                            SnapHelper helper = new StartLinearSnapHelper();
-                            helper.attachToRecyclerView(stopTimesList);
-                            stopTimesList.setLayoutManager(linearLayoutManager);
-                        }
-                        stopTimesList.setAdapter(new BindingAdapter<ItemStopTimesBinding>(R.layout.item_stop_times) {
-                            @Override
-                            public int getItemCount() {
-                                return stopRouteSchedule.getSchedule().size();
-                            }
-
-                            @Override
-                            protected void updateBinding(ItemStopTimesBinding timesBinding, int position) {
-                                StopTime stopTime = stopRouteSchedule.getSchedule().get(position);
-                                String time = ScheduleUtils.getTimeString(getContext(), stopTime);
-                                timesBinding.setTime(time);
-                                timesBinding.setBold(ScheduleUtils.getIndexOfNext(stopRouteSchedule) == position);
-                            }
-
-                            @Override
-                            protected void recycleBinding(ItemStopTimesBinding binding) {
-                                Timber.w("recycleBinding-a");
-                            }
-
-                        });
-
-                        int indexOfNext = ScheduleUtils.getIndexOfNext(stopRouteSchedule);
-                        if (indexOfNext > 0) {
-                            ((LinearLayoutManager) stopTimesList.getLayoutManager()).scrollToPositionWithOffset(indexOfNext, 0);
-                        }
-                    }
-
-                    @Override
-                    protected void recycleBinding(ItemStopDetailBinding binding) {
-                        Timber.w("recycleBinding-b");
-                    }
-                });
+                routeDetailList.setAdapter(new StopDetailAdapter(getContext(), mRealm, stopDetailModel));
             }
 
             @Override
@@ -542,10 +490,10 @@ public class StopFragment extends RxFragment {
                 }).show();
     }
 
-    private void deleteStopAtPosition(int position) {
+    private void deleteStop(Stop stop) {
         FavouriteStops favouriteStops = mRealm.where(FavouriteStops.class).findFirst();
+        int position = favouriteStops.getStops().indexOf(stop);
         mRealm.executeTransaction(realm -> {
-            Stop stop = favouriteStops.getStops().get(position);
             favouriteStops.getStops().remove(stop);
             favouriteStops.setLastUpdated(new Date());
             mAdapter.notifyItemRemoved(position);
@@ -564,5 +512,79 @@ public class StopFragment extends RxFragment {
         });
     }
 
+    private static class StopDetailAdapter extends BindingAdapter<ItemStopDetailBinding> {
 
+        private final Context mContext;
+        private final Realm mRealm;
+        private final StopDetailModel mStopDetailModel;
+
+        StopDetailAdapter(Context context, Realm realm, StopDetailModel stopDetailModel) {
+            super(R.layout.item_stop_detail);
+            mContext = context;
+            mRealm = realm;
+            mStopDetailModel = stopDetailModel;
+        }
+
+        @Override
+        public int getItemCount() {
+            return mStopDetailModel.getSchedules().size();
+        }
+
+        @Override
+        protected void updateBinding(ItemStopDetailBinding detailBinding, int position) {
+            StopRouteSchedule stopRouteSchedule = mStopDetailModel.getSchedules().get(position);
+
+            Route route = stopRouteSchedule.getRoute();
+            detailBinding.setRoute(String.format("%s \u2014 %s", route.getRoute_short_name(), ScheduleUtils.getHeadSign(mRealm, stopRouteSchedule)));
+
+            RecyclerView stopTimesList = detailBinding.stopTimesList;
+            if (stopTimesList.getLayoutManager() == null) {
+                final LinearLayoutManager linearLayoutManager = new LinearLayoutManager(mContext, LinearLayoutManager.HORIZONTAL, false);
+                stopTimesList.setHasFixedSize(true);
+                SnapHelper helper = new StartLinearSnapHelper();
+                helper.attachToRecyclerView(stopTimesList);
+                stopTimesList.setLayoutManager(linearLayoutManager);
+            }
+            stopTimesList.setAdapter(new StopTimesAdapter(mContext, stopRouteSchedule));
+
+            int indexOfNext = ScheduleUtils.getIndexOfNext(stopRouteSchedule);
+            if (indexOfNext > 0) {
+                ((LinearLayoutManager) stopTimesList.getLayoutManager()).scrollToPositionWithOffset(indexOfNext, 0);
+            }
+        }
+
+        @Override
+        protected void recycleBinding(ItemStopDetailBinding binding) {
+            Timber.w("recycleBinding-b");
+        }
+    }
+
+    private static class StopTimesAdapter extends BindingAdapter<ItemStopTimesBinding> {
+        private final Context mContext;
+        private final StopRouteSchedule mStopRouteSchedule;
+
+        StopTimesAdapter(Context context, StopRouteSchedule stopRouteSchedule) {
+            super(R.layout.item_stop_times);
+            mContext = context;
+            mStopRouteSchedule = stopRouteSchedule;
+        }
+
+        @Override
+        public int getItemCount() {
+            return mStopRouteSchedule.getSchedule().size();
+        }
+
+        @Override
+        protected void updateBinding(ItemStopTimesBinding timesBinding, int position) {
+            StopTime stopTime = mStopRouteSchedule.getSchedule().get(position);
+            String time = ScheduleUtils.getTimeString(mContext, stopTime);
+            timesBinding.setTime(time);
+            timesBinding.setBold(ScheduleUtils.getIndexOfNext(mStopRouteSchedule) == position);
+        }
+
+        @Override
+        protected void recycleBinding(ItemStopTimesBinding binding) {
+            Timber.w("recycleBinding-a");
+        }
+    }
 }
