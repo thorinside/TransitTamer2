@@ -370,10 +370,6 @@ public class StopFragment extends RxFragment {
 
         checkEmpty();
 
-        for (Stop stop : mStops) {
-            mDataManager.syncStop(stop);
-        }
-
         mFavouriteStops.addChangeListener(element -> {
             mHandler.removeCallbacks(mChangeHandler);
             mHandler.postDelayed(mChangeHandler, DELAY_MILLIS);
@@ -539,9 +535,7 @@ public class StopFragment extends RxFragment {
                                             favouriteStops.setLastUpdated(new Date());
                                         });
 
-                                        for (Stop newStop : newStops) {
-                                            mDataManager.syncStop(newStop);
-                                        }
+                                        mDataManager.syncService(true);
 
                                     }
                             );

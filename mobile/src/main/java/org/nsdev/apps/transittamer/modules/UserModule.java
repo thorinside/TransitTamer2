@@ -34,8 +34,8 @@ public class UserModule {
 
     @UserScope
     @Provides
-    DataManager getDataManager(App context, TransitTamerAPI api, RealmConfiguration config) {
-        return new DataManager(context, api, config);
+    DataManager getDataManager(App context, TransitTamerAPI api, RealmConfiguration config, SharedPreferences preferences) {
+        return new DataManager(context, api, config, preferences);
     }
 
     @UserScope

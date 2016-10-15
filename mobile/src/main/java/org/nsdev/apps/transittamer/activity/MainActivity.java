@@ -173,4 +173,17 @@ public class MainActivity extends RxAppCompatActivity
     public boolean onOptionsItemSelected(MenuItem item) {
         return super.onOptionsItemSelected(item);
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        checkService();
+    }
+
+    private void checkService() {
+        mDataManager.syncService();
+    }
+
+
 }
