@@ -18,6 +18,8 @@ dependencies:
         - echo y | android update sdk --no-ui --all --filter tools,platform-tools,extra-android-m2repository,extra-google-m2repository,extra-google-google_play_services,extra-android-support,android-24
         - echo y | android update sdk --no-ui --all --filter build-tools-24.0.3
         - mkdir -p /usr/local/android-sdk-linux/licenses
+        - mkdir -p /usr/local/android-sdk-linux/extras/m2repository/com/android/support/constraint/constraint-layout-solver/1.0.0-alpha9
+        - mkdir -p /usr/local/android-sdk-linux/extras/m2repository/com/android/support/constraint/constraint-layout/1.0.0-alpha9
         - cp /home/ubuntu/TransitTamer2/licenses/* /usr/local/android-sdk-linux/licenses/
     cache_directories:
         - /usr/local/android-sdk-linux/tools
