@@ -4,23 +4,11 @@
 # See this thread for speeding up and caching directories: https://discuss.circleci.com/t/installing-android-build-tools-23-0-2/924
 #
 
-general:
-    artifacts:
-        - /home/ubuntu/TransitTamer2/app/build/outputs/apk/
-
-machine:
-    environment:
-        ANDROID_HOME: /usr/local/android-sdk-linux
-
-
 dependencies:
     pre:
-        - echo y | android update sdk --no-ui --all --filter tools,platform-tools,extra-android-m2repository,extra-google-m2repository,extra-google-google_play_services,extra-android-support,android-24
-        - echo y | android update sdk --no-ui --all --filter build-tools-24.0.3
-        - mkdir -p /usr/local/android-sdk-linux/licenses
-        - mkdir -p /usr/local/android-sdk-linux/extras/m2repository/com/android/support/constraint/constraint-layout-solver/1.0.0-alpha9
-        - mkdir -p /usr/local/android-sdk-linux/extras/m2repository/com/android/support/constraint/constraint-layout/1.0.0-alpha9
-        - cp /home/ubuntu/TransitTamer2/licenses/* /usr/local/android-sdk-linux/licenses/
+        - mkdir -p "$ANDROID_HOME/licenses" || true
+        - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
+        - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
     cache_directories:
         - /usr/local/android-sdk-linux
     override:
@@ -28,5 +16,5 @@ dependencies:
 
 test:
     override:
-        - ./gradlew assemble
-        - cp -r app/build/outputs $CIRCLE_ARTIFACTS
+        - ./gradlew assembleDebug
+        - cp -r mobile/build/outputs $CIRCLE_ARTIFACTS
