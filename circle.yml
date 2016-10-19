@@ -23,6 +23,8 @@ dependencies:
         - cp /home/ubuntu/TransitTamer2/licenses/* /usr/local/android-sdk-linux/licenses/
     cache_directories:
         - /usr/local/android-sdk-linux
+    override:
+        - ./gradlew dependencies || true
 
 test:
     override:
