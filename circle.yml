@@ -10,13 +10,13 @@ dependencies:
         - echo -e "\n8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
         - echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
     override:
-        - ./gradlew dependencies || true
+        - ./gradlew dependencies --console=plain || true
 
 test:
-    pre:
-        - emulator -avd circleci-android23 -no-audio -no-window:
+    override:
+        - emulator -avd circleci-android22 -no-audio -no-window:
             background: true
             parallel: true
         - circle-android wait-for-boot
-    override:
-        - ./gradlew connectedDebugAndroidTest
+        - ./gradlew connectedDebugAndroidTest --console=plain
+        - cp -r mobile/build/outputs/androidTest-results/* $CIRCLE_TEST_REPORTS
