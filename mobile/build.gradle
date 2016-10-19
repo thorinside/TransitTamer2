@@ -6,6 +6,12 @@ apply plugin: 'realm-android'
 
 android {
     signingConfigs {
+        debug {
+            keyAlias 'android'
+            keyPassword 'strata-mephitic-yukon'
+            storeFile file('debug.keystore.jks')
+            storePassword 'strata-mephitic-yukon'
+        }
         release {
             keyAlias 'thorinside'
             keyPassword 'Mac111Mac111'
@@ -25,7 +31,7 @@ android {
     buildTypes {
         debug {
             testCoverageEnabled true
-            signingConfig = signingConfigs.release
+            signingConfig = signingConfigs.debug
         }
         release {
             minifyEnabled false
