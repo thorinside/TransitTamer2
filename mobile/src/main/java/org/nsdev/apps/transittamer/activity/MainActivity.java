@@ -74,13 +74,13 @@ public class MainActivity extends RxAppCompatActivity
         bottomNavigation.setOnTabSelectListener(tabId -> {
             switch (tabId) {
                 case R.id.tab_stops:
-                    mBinding.viewpager.setCurrentItem(0, true);
+                    mBinding.viewpager.setCurrentItem(0, false);
                     break;
                 case R.id.tab_route:
-                    mBinding.viewpager.setCurrentItem(1, true);
+                    mBinding.viewpager.setCurrentItem(1, false);
                     break;
                 case R.id.tab_map:
-                    mBinding.viewpager.setCurrentItem(2, true);
+                    mBinding.viewpager.setCurrentItem(2, false);
                     break;
             }
         });
