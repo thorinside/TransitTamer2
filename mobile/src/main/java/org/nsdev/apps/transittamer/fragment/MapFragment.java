@@ -142,7 +142,9 @@ public class MapFragment extends Fragment {
         mRouteShapes.clear();
         mRouteNames.clear();
         mBinding.map.onDestroy();
-        mFavouriteStops.removeChangeListeners();
+        if (mFavouriteStops != null) {
+            mFavouriteStops.removeChangeListeners();
+        }
     }
 
     @Override
