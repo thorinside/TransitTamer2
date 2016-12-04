@@ -72,6 +72,7 @@ dependencies {
     // UI
     compile 'com.afollestad.material-dialogs:core:0.9.0.2'
     compile 'com.roughike:bottom-bar:2.0.2'
+    compile 'com.genius:groupie:0.4.0'
 
     // Logging
     compile 'com.jakewharton.timber:timber:4.3.1'

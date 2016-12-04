@@ -11,7 +11,6 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.transition.TransitionManager;
 import android.support.v4.app.Fragment;
-import android.support.v7.util.DiffUtil;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SnapHelper;
@@ -24,6 +23,9 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.afollestad.materialdialogs.MaterialDialog;
+import com.genius.groupie.GroupAdapter;
+import com.genius.groupie.Item;
+import com.genius.groupie.UpdatingGroup;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -53,7 +55,6 @@ import org.nsdev.apps.transittamer.net.model.Route;
 import org.nsdev.apps.transittamer.net.model.Stop;
 import org.nsdev.apps.transittamer.net.model.StopTime;
 import org.nsdev.apps.transittamer.ui.BindingAdapter;
-import org.nsdev.apps.transittamer.ui.ItemClickSupport;
 import org.nsdev.apps.transittamer.ui.StartLinearSnapHelper;
 import org.nsdev.apps.transittamer.utils.OneMinuteTimer;
 import org.nsdev.apps.transittamer.utils.ScheduleUtils;
@@ -86,8 +87,8 @@ public class StopFragment extends RxFragment {
     private static final long LOCATION_TIMEOUT_IN_SECONDS = 30;
     private static final long LOCATION_UPDATE_INTERVAL = 5000;
     private FragmentStopBinding mBinding;
-    private BindingAdapter<ItemStopBinding> mAdapter;
-    private List<Stop> mStops;
+    private UpdatingGroup mUpdatingGroup;
+    private GroupAdapter mAdapter;
 
     public interface CoordinatorProvider {
         View getCoordinator();
@@ -143,8 +144,6 @@ public class StopFragment extends RxFragment {
                              Bundle savedInstanceState) {
         mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_stop, container, false);
 
-        mStops = new RealmList<>();
-
         setupRecyclerView();
 
         mTimer = new OneMinuteTimer();
@@ -152,98 +151,106 @@ public class StopFragment extends RxFragment {
 
         mHandler = new Handler();
         mChangeHandler = () -> {
-            checkEmpty();
+            updateStopList();
         };
 
         return mBinding.getRoot();
+    }
+
+    public class StopItem extends Item<ItemStopBinding> {
+        private final Stop mStop;
+        private StopViewModel mViewModel;
+
+        public StopItem(Stop stop) {
+            mStop = stop;
+        }
+
+        @Override
+        public void bind(ItemStopBinding viewBinding, int position) {
+            mViewModel = new StopViewModel(mStop);
+            viewBinding.setViewModel(mViewModel);
+
+            mStop.removeChangeListeners();
+            mStop.addChangeListener(element -> {
+                Timber.d("Stop element changed: %s", element);
+                StopViewModel viewModel = viewBinding.getViewModel();
+                viewModel.notifyPropertyChanged(BR.routes);
+                viewModel.notifyPropertyChanged(BR.next);
+                RecyclerView.Adapter adapter = viewBinding.routeDetailList.getAdapter();
+                if (adapter != null) {
+                    adapter.notifyItemRangeChanged(0, adapter.getItemCount());
+                }
+            });
+
+            viewBinding.map.onCreate(null);
+            viewBinding.map.getMapAsync(googleMap -> setupMap(mStop, viewBinding.map, googleMap));
+            Menu menu = viewBinding.toolbar.getMenu();
+            if (menu != null) {
+                menu.clear();
+            }
+            viewBinding.toolbar.inflateMenu(R.menu.stop_card);
+            viewBinding.toolbar.setOnMenuItemClickListener(item -> {
+                if (item.getItemId() == R.id.action_delete) {
+                    deleteStop(mStop);
+                    return true;
+                }
+                return false;
+            });
+
+            RecyclerView routeDetailList = viewBinding.routeDetailList;
+            if (routeDetailList.getLayoutManager() == null) {
+                routeDetailList.setHasFixedSize(true);
+                routeDetailList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
+            }
+
+            StopDetailModel stopDetailModel = new StopDetailModel(mRealm, mStop);
+
+            routeDetailList.setAdapter(new StopDetailAdapter(getContext(), mRealm, stopDetailModel));
+        }
+
+        @Override
+        public int getLayout() {
+            return R.layout.item_stop;
+        }
+
+        @Override
+        public long getId() {
+            return Long.parseLong(mStop.getStop_id());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof StopItem && mStop.getStop_id().equals(((StopItem) obj).mStop.getStop_id());
+        }
+
+        public StopViewModel getViewModel() {
+            return mViewModel;
+        }
     }
 
     private void setupRecyclerView() {
         LinearLayoutManager layout = new LinearLayoutManager(getActivity());
         mBinding.recyclerView.setLayoutManager(layout);
 
-        mAdapter = new BindingAdapter<ItemStopBinding>(R.layout.item_stop) {
-            @Override
-            public int getItemCount() {
-                return mStops == null ? 0 : mStops.size();
-            }
+        mAdapter = new GroupAdapter();
 
-            @Override
-            protected void updateBinding(ItemStopBinding binding, int position) {
+        mAdapter.setOnItemClickListener((item, view) -> {
+            StopItem stopItem = (StopItem) item;
+            StopViewModel viewModel = stopItem.getViewModel();
+            viewModel.setOpen(!viewModel.isOpen());
+        });
 
-                Stop stop = mStops.get(position);
-                binding.setViewModel(new StopViewModel(stop));
-
-                mViewModelForPosition.put(position, binding.getViewModel());
-
-                stop.removeChangeListeners();
-                stop.addChangeListener(element -> {
-                    Timber.d("Stop element changed: %s", element);
-                    StopViewModel viewModel = binding.getViewModel();
-                    viewModel.notifyPropertyChanged(BR.routes);
-                    viewModel.notifyPropertyChanged(BR.next);
-                    RecyclerView.Adapter adapter = binding.routeDetailList.getAdapter();
-                    if (adapter != null) {
-                        adapter.notifyItemRangeChanged(0, adapter.getItemCount());
-                    }
-                });
-
-                binding.map.onCreate(null);
-                binding.map.getMapAsync(googleMap -> setupMap(stop, binding.map, googleMap));
-                Menu menu = binding.toolbar.getMenu();
-                if (menu != null) {
-                    menu.clear();
-                }
-                binding.toolbar.inflateMenu(R.menu.stop_card);
-                binding.toolbar.setOnMenuItemClickListener(item -> {
-                    if (item.getItemId() == R.id.action_delete) {
-                        deleteStop(stop);
-                        return true;
-                    }
-                    return false;
-                });
-
-                RecyclerView routeDetailList = binding.routeDetailList;
-                if (routeDetailList.getLayoutManager() == null) {
-                    routeDetailList.setHasFixedSize(true);
-                    routeDetailList.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.VERTICAL, false));
-                }
-
-                StopDetailModel stopDetailModel = new StopDetailModel(mRealm, stop);
-
-                routeDetailList.setAdapter(new StopDetailAdapter(getContext(), mRealm, stopDetailModel));
-            }
-
-            @Override
-            protected void recycleBinding(ItemStopBinding binding) {
-                Timber.w("recycleBinding-c");
-                binding.getViewModel().getStop().removeChangeListeners();
-
-                // Clear the google map
-                GoogleMap googleMap = (GoogleMap) binding.map.getTag();
-                if (googleMap != null) {
-                    googleMap.clear();
-                    googleMap.setMapType(GoogleMap.MAP_TYPE_NONE);
-                }
-
-                binding.map.setTag(null);
-                binding.map.onDestroy();
-            }
-        };
+        mUpdatingGroup = new UpdatingGroup();
+        mAdapter.add(mUpdatingGroup);
 
         mBinding.recyclerView.setAdapter(mAdapter);
-
-        ItemClickSupport.addTo(mBinding.recyclerView)
-                .setOnItemClickListener((recyclerView, position, v) -> {
-                    StopViewModel stopViewModel = mViewModelForPosition.get(position);
-                    stopViewModel.setOpen(!stopViewModel.isOpen());
-                });
-
     }
 
     private void updateNextBus() {
-        for (Stop stop : mStops) {
-            mDataManager.syncStopNextBus(stop);
+        if (mFavouriteStops != null && mFavouriteStops.isValid() && mFavouriteStops.isLoaded() && mFavouriteStops.getStops() != null) {
+            for (Stop stop : mFavouriteStops.getStops()) {
+                mDataManager.syncStopNextBus(stop);
+            }
         }
     }
 
@@ -279,11 +286,10 @@ public class StopFragment extends RxFragment {
             map.setMapType(GoogleMap.MAP_TYPE_NONE);
         }
 
-        for (Stop stop : mStops) {
+        for (Stop stop : mFavouriteStops.getStops()) {
             stop.removeChangeListeners();
         }
 
-        mStops = null;
         mAdapter.notifyDataSetChanged();
         mBinding.recyclerView.setAdapter(null);
         mHandler.removeCallbacks(mChangeHandler);
@@ -313,28 +319,38 @@ public class StopFragment extends RxFragment {
     @Override
     public void onViewStateRestored(@Nullable Bundle savedInstanceState) {
 
-        mFavouriteStops = mRealm.where(FavouriteStops.class).findFirst();
-        mStops = mFavouriteStops.getStops();
-
-        checkEmpty();
+        mFavouriteStops = mRealm.where(FavouriteStops.class).findFirstAsync();
 
         mFavouriteStops.addChangeListener(element -> {
             mHandler.removeCallbacks(mChangeHandler);
             mHandler.postDelayed(mChangeHandler, DELAY_MILLIS);
         });
 
+        updateNextBus();
+
         super.onViewStateRestored(savedInstanceState);
     }
 
-    private void checkEmpty() {
+    private void updateStopList() {
 
         TransitionManager.beginDelayedTransition((ViewGroup) mBinding.getRoot());
 
-        if (mFavouriteStops == null || mStops == null || mStops.size() == 0) {
+        if (mFavouriteStops == null || mFavouriteStops.getStops() == null || mFavouriteStops.getStops().size() == 0) {
             mBinding.setEmpty(true);
         } else {
             mBinding.setEmpty(false);
+            RealmList<Stop> stops = mFavouriteStops.getStops();
+            mUpdatingGroup.update(makeListItems(stops));
         }
+    }
+
+    private List<? extends Item> makeListItems(RealmList<Stop> stops) {
+        ArrayList<Item> retval = new ArrayList<>();
+        for (Stop stop : stops) {
+            StopItem item = new StopItem(stop);
+            retval.add(item);
+        }
+        return retval;
     }
 
     @Override
@@ -399,7 +415,7 @@ public class StopFragment extends RxFragment {
         Timber.d("Sorting Stops By Location: %s", location);
 
         ArrayList<Stop> sortedStops = new ArrayList<Stop>();
-        sortedStops.addAll(mStops);
+        sortedStops.addAll(mFavouriteStops.getStops());
 
         Collections.sort(sortedStops, (loc1, loc2) -> {
             float[] results = new float[2];
@@ -417,42 +433,12 @@ public class StopFragment extends RxFragment {
             return 0;
         });
 
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new MyDiffCallback(sortedStops, mStops), true);
-        diffResult.dispatchUpdatesTo(mAdapter);
-        mStops = sortedStops;
-
-        mBinding.recyclerView.scrollToPosition(0);
-    }
-
-    public class MyDiffCallback extends DiffUtil.Callback {
-
-        List<Stop> old;
-        List<Stop> newer;
-
-        public MyDiffCallback(List<Stop> newStops, List<Stop> oldStops) {
-            old = oldStops;
-            newer = newStops;
-        }
-
-        @Override
-        public int getOldListSize() {
-            return old.size();
-        }
-
-        @Override
-        public int getNewListSize() {
-            return newer.size();
-        }
-
-        @Override
-        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-            return old.get(oldItemPosition).getStop_id().equals(newer.get(newItemPosition).getStop_id());
-        }
-
-        @Override
-        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-            return old.get(oldItemPosition).equals(newer.get(newItemPosition));
-        }
+        mRealm.executeTransaction(realm -> {
+            mFavouriteStops.getStops().clear();
+            mFavouriteStops.getStops().addAll(sortedStops);
+            mFavouriteStops.setLastUpdated(new Date());
+            mBinding.recyclerView.scrollToPosition(0);
+        });
     }
 
     private void doAddStop() {
@@ -496,7 +482,6 @@ public class StopFragment extends RxFragment {
         mRealm.executeTransaction(realm -> {
             favouriteStops.getStops().remove(stop);
             favouriteStops.setLastUpdated(new Date());
-            mAdapter.notifyItemRemoved(position);
 
             if (getActivity() instanceof CoordinatorProvider) {
 
@@ -506,7 +491,6 @@ public class StopFragment extends RxFragment {
                                 favouriteStops.getStops().add(position, stop);
                                 favouriteStops.setLastUpdated(new Date());
                             });
-                            mAdapter.notifyItemInserted(position);
                         }).show();
             }
         });
