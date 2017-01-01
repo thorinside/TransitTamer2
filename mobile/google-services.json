@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "747018643982",
+    "firebase_url": "https://transittamer2.firebaseio.com",
+    "project_id": "transittamer2",
+    "storage_bucket": "transittamer2.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:747018643982:android:1b041e2c49cf3693",
+        "android_client_info": {
+          "package_name": "org.nsdev.apps.transittamer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "747018643982-lqosrbj635hrn3u0go14b7ai4f0l3d4j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "org.nsdev.apps.transittamer",
+            "certificate_hash": "851D8581E6852D85A90F932E046ED78586974159"
+          }
+        },
+        {
+          "client_id": "747018643982-qmkfvip294phvu796l7c9lidhs1dsccf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACZzffWNDbrUUvKIEU0sjSwdYplwHOWy0"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "747018643982-qmkfvip294phvu796l7c9lidhs1dsccf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,8 +1,9 @@
 package org.nsdev.apps.transittamer.activity;
 
+import android.content.Intent;
 import android.databinding.DataBindingUtil;
+import android.net.Uri;
 import android.os.Bundle;
-import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
@@ -12,6 +13,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
+import com.google.android.gms.appinvite.AppInviteInvitation;
+import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.crash.FirebaseCrash;
 import com.roughike.bottombar.BottomBar;
 import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
@@ -31,9 +35,12 @@ import java.util.List;
 import javax.inject.Inject;
 
 import io.realm.Realm;
+import timber.log.Timber;
 
 public class MainActivity extends RxAppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener, StopFragment.CoordinatorProvider {
+        implements StopFragment.CoordinatorProvider {
+
+    private static final int REQUEST_INVITE = 1001;
 
     @Inject
     ProfileManager mProfileManager;
@@ -50,6 +57,8 @@ public class MainActivity extends RxAppCompatActivity
     private ActivityMainBinding mBinding;
     private ViewPager mViewPager;
 
+    private FirebaseAnalytics mFirebaseAnalytics;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         setTheme(R.style.AppTheme_NoActionBar);
@@ -65,6 +74,9 @@ public class MainActivity extends RxAppCompatActivity
         mViewPager = mBinding.viewpager;
         setupViewPager(mViewPager);
         setupBottomNavigation();
+
+        // Obtain the FirebaseAnalytics instance.
+        mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
     }
 
     private void setupBottomNavigation() {
@@ -95,29 +107,6 @@ public class MainActivity extends RxAppCompatActivity
     @Override
     public void onBackPressed() {
         super.onBackPressed();
-    }
-
-    @SuppressWarnings("StatementWithEmptyBody")
-    @Override
-    public boolean onNavigationItemSelected(MenuItem item) {
-        // Handle navigation view item clicks here.
-        int id = item.getItemId();
-
-        if (id == R.id.nav_camera) {
-            // Handle the camera action
-        } else if (id == R.id.nav_gallery) {
-
-        } else if (id == R.id.nav_slideshow) {
-
-        } else if (id == R.id.nav_manage) {
-
-        } else if (id == R.id.nav_share) {
-
-        } else if (id == R.id.nav_send) {
-
-        }
-
-        return true;
     }
 
     private void setupViewPager(ViewPager viewPager) {
@@ -171,7 +160,28 @@ public class MainActivity extends RxAppCompatActivity
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+
+        switch (item.getItemId()) {
+            case R.id.action_invite:
+                onInviteClicked();
+                return true;
+        }
+
         return super.onOptionsItemSelected(item);
+    }
+
+    private void onInviteClicked() {
+        try {
+            Intent intent = new AppInviteInvitation.IntentBuilder(getString(R.string.action_invite_title))
+                    .setMessage(getString(R.string.invitation_message))
+                    .setDeepLink(Uri.parse(getString(R.string.invitation_deep_link)))
+                    .setCustomImage(Uri.parse(getString(R.string.invitation_custom_image)))
+                    .setCallToActionText(getString(R.string.invitation_cta))
+                    .build();
+            startActivityForResult(intent, REQUEST_INVITE);
+        } catch (Throwable ex) {
+            FirebaseCrash.report(ex);
+        }
     }
 
     @Override
@@ -185,5 +195,23 @@ public class MainActivity extends RxAppCompatActivity
         mDataManager.syncService();
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        Timber.d("onActivityResult: requestCode=%d, resultCode=%d", requestCode, resultCode);
+
+        if (requestCode == REQUEST_INVITE) {
+            if (resultCode == RESULT_OK) {
+                // Get the invitation IDs of all sent messages
+                String[] ids = AppInviteInvitation.getInvitationIds(resultCode, data);
+                for (String id : ids) {
+                    Timber.d("onActivityResult: sent invitation %s", id);
+                }
+            } else {
+                // Sending failed or it was canceled, show failure message to the user
+                // ...
+            }
+        }
+    }
 
 }

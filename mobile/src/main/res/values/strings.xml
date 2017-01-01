@@ -16,4 +16,9 @@
     <string name="sort_by_nearest">Sort by Nearest</string>
     <string name="action_delete">Delete</string>
     <string name="show_location">Show Location</string>
+    <string name="action_invite_title">Invite Friends</string>
+    <string name="invitation_message">Try Transit Tamer</string>
+    <string name="invitation_deep_link">invitation://deep_link</string>
+    <string name="invitation_custom_image">https://lh3.googleusercontent.com/Y2xntk4k1VJkVzX0y8k-N8u_JYdXX5-j6nUknhjHyXe3NzZbVd_xVzdG-NKvuMIYah0=w300-rw</string>
+    <string name="invitation_cta">Try it now!</string>
 </resources>

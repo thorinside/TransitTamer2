@@ -68,6 +68,10 @@ dependencies {
     compile "com.android.support:recyclerview-v7:$supportLibraryVersion"
     compile "com.android.support:transition:$supportLibraryVersion"
 
+    compile "com.google.firebase:firebase-core:$playServicesVersion"
+    compile "com.google.firebase:firebase-crash:$playServicesVersion"
+    compile "com.google.firebase:firebase-invites:$playServicesVersion"
+
     // Maps
     compile "com.google.android.gms:play-services-location:$playServicesVersion"
     compile "com.google.android.gms:play-services-maps:$playServicesVersion"
@@ -106,3 +110,5 @@ dependencies {
     // Layout
     compile 'com.android.support.constraint:constraint-layout:1.0.0-beta4'
 }
+
+apply plugin: 'com.google.gms.google-services'
